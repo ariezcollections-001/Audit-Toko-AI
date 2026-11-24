@@ -1,0 +1,68 @@
+{
+  "version": 1.1,
+  "description": "Tailwind CSS custom data to prevent false 'unknown at rule' warnings for @tailwind directives.",
+  "atRules": [
+    {
+      "name": "tailwind",
+      "description": "Tailwind CSS directive that injects the base, components, or utilities styles (e.g. @tailwind base; @tailwind components; @tailwind utilities;).",
+      "parameters": [
+        {
+          "name": "base",
+          "description": "Injects Tailwind's base styles (preflight reset and element defaults)."
+        },
+        {
+          "name": "components",
+          "description": "Injects Tailwind's component classes."
+        },
+        {
+          "name": "utilities",
+          "description": "Injects Tailwind's utility classes."
+        },
+        {
+          "name": "screens",
+          "description": "Injects Tailwind's screen definitions."
+        }
+      ]
+    },
+    {
+      "name": "apply",
+      "description": "Tailwind CSS directive that inlines any custom CSS class (e.g. @apply bg-blue-500 text-white;).",
+      "parameters": [
+        {
+          "name": "classes",
+          "description": "One or more Tailwind CSS class names separated by spaces."
+        }
+      ]
+    },
+    {
+      "name": "variants",
+      "description": "Tailwind CSS directive that generates variants for a set of utilities.",
+      "parameters": [
+        {
+          "name": "variants",
+          "description": "Variant modifiers such as hover, focus, md:, etc."
+        }
+      ]
+    },
+    {
+      "name": "screen",
+      "description": "Tailwind CSS directive that creates a media block for a breakpoint (e.g. @screen md { ... }).",
+      "parameters": [
+        {
+          "name": "name",
+          "description": "The breakpoint name defined in tailwind.config.js."
+        }
+      ]
+    },
+    {
+      "name": "responsive",
+      "description": "Tailwind CSS directive that generates responsive variants for utilities.",
+      "parameters": [
+        {
+          "name": "variants",
+          "description": "Variant modifiers separated by spaces."
+        }
+      ]
+    }
+  ]
+}

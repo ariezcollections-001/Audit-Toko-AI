@@ -1,0 +1,7 @@
+{
+  // CSS custom data for Tailwind CSS at-rules (@tailwind, @apply, @variants, @screen, @responsive).
+  // Prevents false "Unknown at rule @tailwind" warnings in globals.css while keeping validation active.
+  "css.customData": [".vscode/tailwind.custom-data.json"],
+  "scss.customData": [".vscode/tailwind.custom-data.json"],
+  "less.customData": [".vscode/tailwind.custom-data.json"]
+}
