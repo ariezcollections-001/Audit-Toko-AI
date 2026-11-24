@@ -661,11 +661,34 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
   }
 
+  // Kumpulkan nama kolom yang sudah di-aliases untuk deduplikasi
+  const mappedColumnNames = new Set()
+  for (const [key, colName] of Object.entries(mapping)) {
+    if (!key.startsWith('cost_')) {
+      mappedColumnNames.add(normalizeHeader(colName))
+    }
+  }
+
   // Add any remaining columns as cost columns if they look like cost/price/deduction
+  // Skip columns that are too similar to already-mapped columns (hindari double counting)
   for (let i = 0; i < normalized.length; i++) {
     if (usedIndices.has(i)) continue
     const header = normalized[i]
     const original = headers[i]
+
+    // Skip jika kolom ini terlalu mirip dengan kolom yang sudah di-alias (deduplikasi)
+    let isDuplicate = false
+    for (const mapped of mappedColumnNames) {
+      if (header === mapped) { isDuplicate = true; break }
+      if (header.includes(mapped) || mapped.includes(header)) { isDuplicate = true; break }
+      // Cek overlap kata minimal 3 karakter
+      const hWords = header.split(' ').filter(Boolean)
+      const mWords = mapped.split(' ').filter(Boolean)
+      const overlap = hWords.filter(w => mWords.includes(w) && w.length >= 3).length
+      if (overlap > 0) { isDuplicate = true; break }
+    }
+    if (isDuplicate) continue
+
     // Expanded cost/deduction keyword detection for unknown column names
     if (COST_KEYWORDS.some(kw => header.includes(kw)) ||
         /harga|ongkir|commission|fee|diskon|potongan|voucher|subsidi|payout|netto|bersih|tarif|ppn|pph|pajak|cod|asuransi|premi|denda|penalti|reversi|chargeback|kurs|transfer|penarikan|saldo|langganan|listing|featured|boost|top ads|search ads|afiliasi|influencer|reimburse|impor|cukai|bea|gateway|dompet|e-wallet|bank|va|kartu kredit|cicilan|bpnl|shopeepay|gopay|ovo|dana|link aja|spaylater|akulaku|atome|cashback|koin|poin|reward|bonus|insentif|konsinyasi|deposit|penjaminan|asuransi|garansi|biaya admin|biaya operasional|biaya overhead|biaya koreksi|biaya penyesuaian|biaya transaksi|biaya jasa|biaya layanan|biaya paket|biaya komisi|biaya potongan|biaya tambahan|biaya lain|biaya lainnya|biaya lainnya/i.test(header)) {
