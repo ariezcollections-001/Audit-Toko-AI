@@ -7,15 +7,27 @@ import * as XLSX from 'xlsx'
 const COLUMN_ALIASES = {
   orderId: [
     'order id', 'no. pesanan', 'nomer pesanan', 'nomor pesanan', 'orderid',
-    'invoice', 'no invoice', 'order number', 'no order', 'pesanan id', 'id pesanan'
+    'invoice', 'no invoice', 'order number', 'no order', 'pesanan id', 'id pesanan',
+    'no transaksi', 'kode transaksi', 'transaction id', 'transaksi id',
+    'nomor order', 'no pemesanan', 'id order', 'order id shopee', 'order id tiktok',
+    'order id tokopedia', 'order id lazada', 'order id bukalapak',
+    'nomor invoice', 'no invoice', 'invoice number', 'invoice no',
+    'order reference', 'referensi pesanan', 'nomor pesanan'
   ],
   productName: [
     'product name', 'nama produk', 'namaproduk', 'produk', 'item name',
-    'nama item', 'product', 'nama barang', 'barang'
+    'nama item', 'product', 'nama barang', 'barang',
+    'nama item produk', 'nama produk shopee', 'nama produk tiktok',
+    'nama produk tokopedia', 'nama produk lazada', 'nama produk bukalapak',
+    'barang yang dijual', 'nama barang terjual', 'sku produk', 'item',
+    'product title', 'judul produk', 'deskripsi produk'
   ],
   sku: [
     'sku', 'kode produk', 'kodebarang', 'product sku', 'item sku',
-    'kode barang', 'kode item'
+    'kode barang', 'kode item', 'kode sku', 'seller sku', 'variant sku',
+    'kode varian', 'product code', 'kode produk shopee', 'kode produk tiktok',
+    'kode produk tokopedia', 'kode produk lazada', 'kode produk bukalapak',
+    'barcode', 'kode batang', 'ean', 'upc'
   ],
   settlementAmount: [
     'settlement amount', 'total penghasilan', 'totalpendapatan',
@@ -23,31 +35,54 @@ const COLUMN_ALIASES = {
     'net amount', 'total receive', 'total diterima', 'jumlah diterima',
     'net payout', 'pendapatan bersih', 'pendapatan netto', 'payout',
     'total payout', 'pendapatan akhir', 'saldo akhir',
-    'estimasi total penghasilan', 'estimated total income', 'est total income'
+    'estimasi total penghasilan', 'estimated total income', 'est total income',
+    'total income', 'pendapatan kotor', 'total pendapatan kotor',
+    'pendapatan bersih akhir', 'saldo tersedia', 'dana cair', 'dana tersedia',
+    'total dana diterima', 'jumlah dana', 'total settlement', 'settlement',
+    'payout amount', 'net settlement', 'total payout amount',
+    'pendapatan marketplace', 'pendapatan toko', 'penghasilan toko'
   ],
   shippingFee: [
     'shipping fee', 'ongkir', 'biaya kirim', 'ongkos kirim',
     'biaya pengiriman', 'shipping', 'ongkos delivery', 'biaya ongkir',
-    'subsidi ongkir', 'voucher ongkir', 'ongkir subsidi'
+    'subsidi ongkir', 'voucher ongkir', 'ongkir subsidi',
+    'ongkos kirim pembeli', 'ongkir pembeli', 'biaya kirim pembeli',
+    'ongkos dikurir', 'biaya dikurir', 'shipping charged', 'ongkir dibebankan',
+    'biaya pengiriman pembeli', 'ongkir jasa kirim', 'biaya ongkir kurir',
+    'ongkir dikurir', 'ongkos kurir', 'biaya kurir', 'ongkir ekspedisi',
+    'biaya ekspedisi', 'ongkir logistic', 'biaya logistic'
   ],
   platformCommission: [
     'platform commission', 'biaya administrasi', 'biaya admin',
     'admin fee', 'commission', 'platform fee', 'biaya platform',
     'biaya jasa', 'jasa penjualan', 'biaya layanan', 'biaya layanan termasuk ppn',
-    'layanan', 'biaya service'
+    'layanan', 'biaya service', 'biaya komisi platform', 'komisi platform',
+    'biaya komisi shopee', 'komisi shopee', 'biaya komisi tiktok',
+    'komisi tiktok', 'biaya komisi tokopedia', 'komisi tokopedia',
+    'biaya komisi lazada', 'komisi lazada', 'biaya komisi bukalapak',
+    'komisi bukalapak', 'fee platform', 'marketplace fee', 'biaya marketplace',
+    'biaya jasa platform', 'potongan platform', 'potongan komisi',
+    'biaya admin marketplace', 'admin marketplace', 'biaya transaksi platform'
   ],
   affiliateCommission: [
     'affiliate commission', 'komisi afiliasi', 'affiliate fee',
-    'biaya afiliasi'
+    'biaya afiliasi', 'komisi influencer', 'biaya influencer',
+    'komisi mitra', 'biaya mitra', 'komisi reseller', 'biaya reseller'
   ],
   // --- Kolom potongan dari file Excel pelanggan ---
   productPrice: [
     'harga asli produk', 'product price', 'harga jual', 'price',
-    'harga', 'unit price', 'harga satuan', 'harga produk'
+    'harga', 'unit price', 'harga satuan', 'harga produk',
+    'harga jual produk', 'harga jual satuan', 'harga unit', 'harga barang',
+    'harga jual barang', 'paid price', 'harga bayar', 'harga pembeli',
+    'harga penjualan', 'harga jual satuan produk', 'price per unit',
+    'harga jual per unit', 'harga produkn', 'original price', 'harga asli'
   ],
   quantity: [
     'quantity', 'qty', 'jumlah', 'jumlah terjual', 'terjual',
-    'jumlah produk', 'qty terjual'
+    'jumlah produk', 'qty terjual', 'jumlah unit', 'jumlah pcs',
+    'jumlah barang', 'pcs terjual', 'kuantitas', 'jumlah order',
+    'jumlah item', 'jumlah pembelian', 'qty order'
   ],
   productWeight: [
     'product weight', 'berat produk', 'berat', 'weight',
@@ -55,94 +90,351 @@ const COLUMN_ALIASES = {
   ],
   shippingEstimate: [
     'estimasi ongkir', 'estimated shipping', 'shipping estimate',
-    'estimated shipping cost', 'ongkir estimasi'
+    'estimated shipping cost', 'ongkir estimasi',
+    'estimasi biaya kirim', 'estimasi ongkos kirim',
+    'shipping estimate cost', 'ongkir estimasi shopee'
   ],
   buyerShipping: [
     'ongkir dibayar pembeli', 'buyer shipping', 'shipping paid by buyer',
-    'ongkir pembeli'
+    'ongkir pembeli', 'ongkir dibayar customer', 'biaya kirim pembeli',
+    'ongkos kirim dibeli', 'shipping paid customer', 'ongkir customer'
   ],
   resi: [
     'resi', 'no resi', 'nomor resi', 'tracking number', 'tracking no',
-    'nomor pengiriman', 'awb'
+    'nomor pengiriman', 'awb', 'nomor tracking', 'tracking id',
+    'nomor resi shopee', 'resi tiktok', 'resi tokopedia', 'resi lazada',
+    'resi bukalapak', 'no resi pengiriman', 'nomor resi pengiriman'
   ],
   voucher: [
     'voucher', 'voucher diskon', 'diskon voucher', 'potongan voucher',
-    'kode voucher', 'promo', 'potongan promo'
+    'kode voucher', 'promo', 'potongan promo', 'potongan voucher shopee',
+    'voucher shopee', 'voucher tiktok', 'voucher tokopedia', 'voucher lazada',
+    'voucher bukalapak', 'diskon promo', 'kode promo', 'potongan diskon',
+    'diskon voucher pembeli', 'voucher pembeli'
   ],
   subsidi: [
-    'subsidi', 'subsidi ongkir', 'subsidi biaya kirim', 'bantuan ongkir'
+    'subsidi', 'subsidi ongkir', 'subsidi biaya kirim', 'bantuan ongkir',
+    'subsidi shopee', 'subsidi tiktok', 'subsidi tokopedia', 'subsidi lazada',
+    'subsidi bukalapak', 'bantuan biaya kirim', 'subsidi pengiriman'
   ],
   // --- Alias Biaya Shopee Terbaru ---
   orderProcessFee: [
-    'biaya proses pesanan', 'order process fee', 'biaya proses order'
+    'biaya proses pesanan', 'order process fee', 'biaya proses order',
+    'biaya proses pesanan shopee', 'order processing fee'
   ],
   adjustmentFee: [
     'biaya penyesuaian', 'biaya penyesuaian pesanan', 'order adjustment',
-    'penyesuaian', 'adjustment fee', 'biaya koreksi'
+    'penyesuaian', 'adjustment fee', 'biaya koreksi',
+    'biaya penyesuaian order', 'koreksi pesanan', 'adjustment pesanan'
   ],
   sellerDiscount: [
-    'diskon penjual', 'diskon seller', 'promo penjual'
+    'diskon penjual', 'diskon seller', 'promo penjual',
+    'diskon penjual shopee', 'seller discount', 'potongan penjual'
   ],
   promoServiceFee: [
     'biaya layanan promo xtra', 'promo xtra service fee', 'biaya layanan promo',
-    'biaya layanan xtra'
+    'biaya layanan xtra', 'biaya layanan xtra shopee', 'promo xtra shopee'
   ],
   // --- Kolom potongan Shopee baru ---
   platformFee: [
-    'biaya platform', 'platform fee'
+    'biaya platform', 'platform fee', 'platform fee shopee',
+    'biaya platform shopee', 'biaya platform marketplace'
   ],
   freeShippingXtra: [
-    'biaya gratis Ongkir XTRA', 'biaya gratis ongkir xtra', 'gratis ongoing xtra'
+    'biaya gratis Ongkir XTRA', 'biaya gratis ongkir xtra', 'gratis ongoing xtra',
+    'biaya gratis ongkir', 'free shipping xtra', 'ongkir gratis xtra',
+    'biaya gratis ongkir shopee', 'biaya gratis kirim xtra'
   ],
   serviceFee: [
-    'biaya layanan', 'biaya jasa', 'service fee'
+    'biaya layanan', 'biaya jasa', 'service fee',
+    'biaya layanan shopee', 'service fee shopee', 'biaya jasa shopee'
   ],
   promoFee: [
-    'biaya promosi', 'biaya promo', 'promo fee'
+    'biaya promosi', 'biaya promo', 'promo fee',
+    'biaya promosi shopee', 'promo fee shopee', 'biaya iklan promosi'
   ],
   otherFee: [
-    'biaya lainnya', 'biaya lain-lain', 'other fee'
+    'biaya lainnya', 'biaya lain-lain', 'other fee',
+    'biaya lain', 'biaya tambahan lainnya', 'miscellaneous fee'
   ],
   adminFee: [
-    'biaya administrasi', 'biaya admin', 'admin fee'
+    'biaya administrasi', 'biaya admin', 'admin fee',
+    'biaya administrasi shopee', 'admin fee shopee', 'biaya admin marketplace'
   ],
   shippingDifference: [
-    'selisih ongkir', 'selisih Ongkir', 'shipping difference'
+    'selisih ongkir', 'selisih Ongkir', 'shipping difference',
+    'selisih biaya kirim', 'selisih ongkos kirim', 'shipping diff',
+    'selisih ongkir shopee', 'perbedaan ongkir'
   ],
   amsCommission: [
-    'biaya komisi ams', 'ams commission', 'komisi ams'
+    'biaya komisi ams', 'ams commission', 'komisi ams',
+    'biaya ams', 'komisi iklan shopee', 'biaya iklan shopee'
   ],
   shippingSavingProgram: [
     'biaya program hemat biaya kirim', 'shipping saving program',
-    'program hemat ongkir', 'hemat biaya kirim'
+    'program hemat ongkir', 'hemat biaya kirim',
+    'program hemat ongkir shopee', 'biaya program hemat ongkir'
   ],
   refund: [
     'refund', 'pengembalian dana', 'nominal pengembalian dana', 'jumlah pengembalian dana',
-    'pengembalian', 'biaya retur', 'retur', 'return', 'refund amount', 'total pengembalian'
+    'pengembalian', 'biaya retur', 'retur', 'return', 'refund amount', 'total pengembalian',
+    'pengembalian dana pembeli', 'biaya pengembalian', 'nominal retur', 'jumlah retur',
+    'refund pembeli', 'total refund', 'pengembalian uang'
   ],
   // --- Kolom biaya potongan dari file Excel pelanggan ---
   transactionFee: [
-    'biaya transaksi', 'biaya transaksi resmi', 'fee transaksi'
+    'biaya transaksi', 'biaya transaksi resmi', 'fee transaksi',
+    'biaya transaksi shopee', 'transaction fee shopee', 'biaya transaksi marketplace'
   ],
   premium: [
-    'premi', 'biaya premi', 'asuransi premi'
+    'premi', 'biaya premi', 'asuransi premi',
+    'biaya asuransi', 'premi asuransi', 'asuransi pengiriman'
   ],
   tax: [
-    'pajak', 'pph 22', 'pajak penghasilan', 'tax'
+    'pajak', 'pph 22', 'pajak penghasilan', 'tax',
+    'ppn', 'pajak pertambahan nilai', 'biaya pajak', 'pajak transaksi'
   ],
   additionalServiceFee: [
-    'biaya layanan tambahan', 'additional service fee', 'biaya tambahan'
+    'biaya layanan tambahan', 'additional service fee', 'biaya tambahan',
+    'biaya layanan tambahan shopee', 'additional service fee shopee'
   ],
   estimatedTotalIncome: [
     'estimasi total penghasilan', 'estimated total income', 'est total income'
   ],
   shippingDeduction: [
     'potongan ongkos kirim dari shopee', 'shipping deduction', 'potongan ongkir shopee',
-    'deduksi ongkir', 'ongkir ditanggung shopee'
+    'deduksi ongkir', 'ongkir ditanggung shopee', 'potongan ongkir'
   ],
   shippingPaidToCourier: [
     'ongkos kirim yang dibayarkan ke jasa kirim', 'shipping paid to courier',
-    'biaya kirim ke kurir', 'ongkir dikurir'
+    'biaya kirim ke kurir', 'ongkir dikurir', 'biaya pengiriman ke kurir',
+    'ongkos dikurir', 'biaya jasa kirim', 'biaya kurir'
+  ],
+  discount: [
+    'diskon', 'discount', 'potongan diskon', 'diskon produk',
+    'diskon penjualan', 'potongan harga', 'price discount',
+    'harga setelah diskon', 'nominal diskon', 'diskon nominal'
+  ],
+  salesDiscount: [
+    'diskon penjual (tambahan)', 'sales discount', 'penjual discount',
+    'biaya diskon penjual', 'potongan diskon penjual'
+  ],
+  commission: [
+    'komisi', 'commission', 'biaya komisi', 'potongan komisi',
+    'komisi penjualan', 'nominal komisi', 'komisi marketplace'
+  ],
+  adsFee: [
+    'biaya iklan / ads', 'biaya iklan', 'ads fee', 'biaya iklan shopee',
+    'biaya iklan tiktok', 'biaya iklan tokopedia', 'biaya iklan lazada',
+    'biaya promosi iklan', 'cost per click', 'cpc', 'biaya iklan marketplace'
+  ],
+  voucherFee: [
+    'biaya voucher', 'voucher fee', 'potongan voucher pembeli',
+    'biaya potongan voucher', 'nominal voucher', 'biaya kode voucher'
+  ],
+  shippingSubsidy: [
+    'subsidi ongkir', 'ongkir subsidi', 'biaya subsidi ongkir',
+    'subsidi ongkos kirim', 'biaya subsidi pengiriman'
+  ],
+  platformDeduction: [
+    'potongan platform', 'platform deduction', 'biaya potongan platform',
+    'nominal potongan platform', 'potongan marketplace platform'
+  ],
+  serviceCharge: [
+    'service charge', 'biaya layanan tambahan', 'charge layanan',
+    'biaya service charge', 'biaya jasa tambahan'
+  ],
+  paymentFee: [
+    'biaya pembayaran', 'payment fee', 'biaya transaksi pembayaran',
+    'biaya pembayaran marketplace', 'biaya pembayaran online'
+  ],
+  penaltyFee: [
+    'denda', 'penalty', 'biaya denda', 'potongan denda',
+    'denda keterlambatan', 'denda pelanggaran', 'biaya penalti'
+  ],
+  codFee: [
+    'biaya cod', 'cod fee', 'biaya pembayaran cod',
+    'biaya cash on delivery', 'ongkir cod', 'biaya cod pembeli'
+  ],
+  insuranceFee: [
+    'biaya asuransi', 'insurance fee', 'biaya asuransi pengiriman',
+    'asuransi paket', 'biaya asuransi paket'
+  ],
+  handlingFee: [
+    'biaya handling', 'handling fee', 'biaya penanganan',
+    'biaya pengemasan', 'packing fee', 'biaya packing'
+  ],
+  packingFee: [
+    'biaya packing', 'packing fee', 'biaya kemasan', 'biaya paket',
+    'biaya kemasan produk', 'packing cost', 'biaya pack'
+  ],
+  warehouseFee: [
+    'biaya gudang', 'warehouse fee', 'biaya penyimpanan',
+    'biaya storage', 'storage fee', 'biaya gudang marketplace'
+  ],
+  lateFee: [
+    'biaya terlambat', 'late fee', 'biaya keterlambatan',
+    'potongan terlambat', 'denda terlambat', 'biaya terlambat pengiriman'
+  ],
+  reversalFee: [
+    'biaya reversi', 'reversal fee', 'potongan reversi',
+    'biaya pembatalan', 'cancellation fee', 'potongan pembatalan'
+  ],
+  chargebackFee: [
+    'biaya chargeback', 'chargeback fee', 'potongan chargeback',
+    'biaya sengketa', 'dispute fee', 'potongan sengketa'
+  ],
+  currencyFee: [
+    'biaya kurs', 'currency fee', 'biaya konversi mata uang',
+    'biaya konversi', 'exchange fee', 'biaya exchange'
+  ],
+  withdrawalFee: [
+    'biaya penarikan', 'withdrawal fee', 'biaya transfer dana',
+    'biaya cairkan dana', 'biaya payout', 'biaya penarikan saldo'
+  ],
+  subscriptionFee: [
+    'biaya langganan', 'subscription fee', 'biaya member',
+    'biaya membership', 'biaya paket langganan', 'biaya toko langganan'
+  ],
+  listingFee: [
+    'biaya listing', 'listing fee', 'biaya pasang produk',
+    'biaya upload produk', 'biaya listing produk', 'biaya daftar produk'
+  ],
+  featuredFee: [
+    'biaya featured', 'featured fee', 'biaya unggulan',
+    'biaya produk unggulan', 'biaya promosi unggulan', 'biaya featured produk'
+  ],
+  boostFee: [
+    'biaya boost', 'boost fee', 'biaya boost produk',
+    'biaya boosting', 'biaya promosi boost', 'biaya tambahan boost'
+  ],
+  topAdsFee: [
+    'biaya top ads', 'top ads fee', 'biaya top ads shopee',
+    'biaya iklan top ads', 'potongan top ads', 'biaya topup ads'
+  ],
+  searchAdsFee: [
+    'biaya search ads', 'search ads fee', 'biaya iklan search',
+    'biaya pencarian iklan', 'potongan search ads', 'biaya iklan pencarian'
+  ],
+  affiliateFee: [
+    'biaya afiliasi', 'affiliate fee', 'potongan afiliasi',
+    'biaya komisi afiliasi', 'nominal afiliasi', 'biaya mitra afiliasi'
+  ],
+  influencerFee: [
+    'biaya influencer', 'influencer fee', 'potongan influencer',
+    'biaya komisi influencer', 'nominal influencer', 'biaya mitra influencer'
+  ],
+  voucherDiscount: [
+    'potongan voucher pembeli', 'voucher discount', 'biaya potongan voucher',
+    'nominal voucher pembeli', 'diskon voucher pembeli', 'potongan kode voucher'
+  ],
+  shippingSubsidyFee: [
+    'biaya subsidi ongkir', 'shipping subsidy fee', 'potongan subsidi ongkir',
+    'nominal subsidi ongkir', 'biaya subsidi pengiriman pembeli'
+  ],
+  buyerSubsidy: [
+    'subsidi pembeli', 'buyer subsidy', 'potongan subsidi pembeli',
+    'biaya subsidi pembeli', 'nominal subsidi pembeli'
+  ],
+  sellerSubsidy: [
+    'subsidi penjual', 'seller subsidy', 'potongan subsidi penjual',
+    'biaya subsidi penjual', 'nominal subsidi penjual'
+  ],
+  voucherReimbursement: [
+    'reimburse voucher', 'biaya reimburse voucher', 'potongan reimburse',
+    'biaya pengembalian voucher', 'nominal reimburse', 'reimbursement voucher'
+  ],
+  crossBorderFee: [
+    'biaya lintas negara', 'cross border fee', 'biaya impor',
+    'biaya bea masuk', 'biaya cukai', 'biaya perpajakan lintas negara'
+  ],
+  customsFee: [
+    'biaya cukai', 'customs fee', 'biaya bea cukai',
+    'biaya impor barang', 'biaya perpajakan impor', 'potongan cukai'
+  ],
+  vatFee: [
+    'biaya ppn', 'vat fee', 'biaya pertambahan nilai',
+    'potongan ppn', 'biaya pajak ppn', 'nominal ppn'
+  ],
+  withholdingTax: [
+    'biaya pph', 'pph fee', 'biaya pph 22', 'biaya pph 23',
+    'potongan pph', 'biaya pajak penghasilan', 'nominal pph'
+  ],
+  serviceTax: [
+    'biaya pajak layanan', 'service tax', 'potongan pajak layanan',
+    'biaya ppn layanan', 'biaya pajak jasa', 'nominal pajak layanan'
+  ],
+  transactionTax: [
+    'biaya pajak transaksi', 'transaction tax', 'potongan pajak transaksi',
+    'biaya pajak penjualan', 'nominal pajak transaksi'
+  ],
+  platformTax: [
+    'biaya pajak platform', 'platform tax', 'potongan pajak platform',
+    'biaya pajak marketplace', 'nominal pajak platform'
+  ],
+  shippingTax: [
+    'biaya pajak ongkir', 'shipping tax', 'potongan pajak ongkir',
+    'biaya pajak pengiriman', 'nominal pajak ongkir'
+  ],
+  paymentGatewayFee: [
+    'biaya gateway pembayaran', 'payment gateway fee', 'potongan gateway',
+    'biaya pembayaran online', 'nominal gateway', 'biaya payment gateway'
+  ],
+  walletFee: [
+    'biaya dompet digital', 'wallet fee', 'potongan dompet',
+    'biaya e-wallet', 'nominal dompet digital', 'biaya dompet elektronik'
+  ],
+  bankFee: [
+    'biaya bank', 'bank fee', 'biaya transfer bank',
+    'biaya administrasi bank', 'nominal biaya bank', 'biaya transfer'
+  ],
+  virtualAccountFee: [
+    'biaya va', 'va fee', 'biaya virtual account',
+    'potongan va', 'biaya admin va', 'nominal biaya va'
+  ],
+  creditCardFee: [
+    'biaya kartu kredit', 'credit card fee', 'potongan kartu kredit',
+    'biaya transaksi kartu kredit', 'nominal kartu kredit'
+  ],
+  installmentFee: [
+    'biaya cicilan', 'installment fee', 'potongan cicilan',
+    'biaya kartu kredit cicilan', 'nominal cicilan', 'biaya cicilan pembeli'
+  ],
+  buyNowPayLaterFee: [
+    'biaya bpnl', 'bpnl fee', 'potongan bpnl',
+    'biaya bayar nanti', 'nominal bpnl', 'biaya bayar nanti kemudian'
+  ],
+  shopeePayFee: [
+    'biaya shopeepay', 'shopeepay fee', 'potongan shopeepay',
+    'biaya dompet shopee', 'nominal shopeepay', 'biaya shopee pay'
+  ],
+  goPayFee: [
+    'biaya gopay', 'gopay fee', 'potongan gopay',
+    'biaya dompet gojek', 'nominal gopay', 'biaya go pay'
+  ],
+  ovoFee: [
+    'biaya ovo', 'ovo fee', 'potongan ovo',
+    'biaya dompet ovo', 'nominal ovo', 'biaya ovo pay'
+  ],
+  danaFee: [
+    'biaya dana', 'dana fee', 'potongan dana',
+    'biaya dompet dana', 'nominal dana', 'biaya dana wallet'
+  ],
+  linkAjaFee: [
+    'biaya link aja', 'link aja fee', 'potongan link aja',
+    'biaya dompet link aja', 'nominal link aja', 'biaya link aja pay'
+  ],
+  shopeePayLaterFee: [
+    'biaya spaylater', 'spaylater fee', 'potongan spaylater',
+    'biaya bayar nanti shopee', 'nominal spaylater', 'biaya shopee pay later'
+  ],
+  akulakuFee: [
+    'biaya akulaku', 'akulaku fee', 'potongan akulaku',
+    'biaya cicilan akulaku', 'nominal akulaku', 'biaya akulaku paylater'
+  ],
+  atomeFee: [
+    'biaya atome', 'atome fee', 'potongan atome',
+    'biaya bayar nanti atome', 'nominal atome', 'biaya atome paylater'
   ]
 }
 
@@ -278,7 +570,19 @@ function getMarketplaceAliases(marketplace) {
 const COST_KEYWORDS = [
   'biaya', 'potongan', 'fee', 'commission', 'koreksi', 'adjustment',
   'penalty', 'denda', 'pokok', 'cogs', 'modal', 'dpp', 'ppn',
-  'pajak', 'tarif', 'biaya layanan', 'biaya transaksi'
+  'pajak', 'tarif', 'biaya layanan', 'biaya transaksi',
+  'ongkir', 'ongkos', 'kirim', 'pengiriman', 'diskon', 'voucher', 'promo',
+  'subsidi', 'reimburse', 'refund', 'retur', 'pengembalian', 'asuransi',
+  'premi', 'cod', 'cod fee', 'biaya cod', 'denda', 'penalti',
+  'reversi', 'chargeback', 'kurs', 'transfer', 'penarikan', 'saldo',
+  'langganan', 'listing', 'featured', 'boost', 'top ads', 'search ads',
+  'afiliasi', 'influencer', 'reimburse', 'impor', 'cukai', 'bea',
+  'gateway', 'dompet', 'e-wallet', 'bank', 'va', 'kartu kredit',
+  'cicilan', 'bpnl', 'shopeepay', 'gopay', 'ovo', 'dana', 'link aja',
+  'spaylater', 'akulaku', 'atome', 'cashback', 'koin', 'poin', 'reward',
+  'bonus', 'insentif', 'konsinyasi', 'deposit', 'penjaminan', 'garansi',
+  'admin', 'operasional', 'overhead', 'paket', 'komisi', 'tambahan',
+  'lainnya', 'lain-lain'
 ]
 
 function normalizeHeader(h) {
@@ -289,10 +593,27 @@ function scoreMatch(header, alias) {
   if (header === alias) return 100
   if (header.includes(alias)) return 85
   if (alias.includes(header)) return 70
+
+  // Word overlap scoring with stemming-lite (remove common suffixes/prefixes)
   const hWords = header.split(' ').filter(Boolean)
   const aWords = alias.split(' ').filter(Boolean)
-  const overlap = hWords.filter(w => aWords.includes(w)).length
+
+  // Exact word match overlap
+  let overlap = hWords.filter(w => aWords.includes(w)).length
   if (overlap > 0) return 60 + overlap * 5
+
+  // Partial word match (e.g., "ongkir" matches "ongkos-kirim")
+  let partialOverlap = 0
+  for (const hw of hWords) {
+    for (const aw of aWords) {
+      if (hw.length >= 4 && aw.length >= 4 && (hw.includes(aw) || aw.includes(hw))) {
+        partialOverlap++
+        break
+      }
+    }
+  }
+  if (partialOverlap > 0) return 45 + partialOverlap * 3
+
   return 0
 }
 
@@ -340,13 +661,14 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
   }
 
-  // Add any remaining columns as cost columns if they contain numerical values
+  // Add any remaining columns as cost columns if they look like cost/price/deduction
   for (let i = 0; i < normalized.length; i++) {
     if (usedIndices.has(i)) continue
     const header = normalized[i]
     const original = headers[i]
-    // Check if it looks like a cost/price column
-    if (/harga|harga jual|harga modal|ongkir|biaya|commission|fee|diskon|potongan|voucher|subsidi|payout|netto|bersih/i.test(header)) {
+    // Expanded cost/deduction keyword detection for unknown column names
+    if (COST_KEYWORDS.some(kw => header.includes(kw)) ||
+        /harga|ongkir|commission|fee|diskon|potongan|voucher|subsidi|payout|netto|bersih|tarif|ppn|pph|pajak|cod|asuransi|premi|denda|penalti|reversi|chargeback|kurs|transfer|penarikan|saldo|langganan|listing|featured|boost|top ads|search ads|afiliasi|influencer|reimburse|impor|cukai|bea|gateway|dompet|e-wallet|bank|va|kartu kredit|cicilan|bpnl|shopeepay|gopay|ovo|dana|link aja|spaylater|akulaku|atome|cashback|koin|poin|reward|bonus|insentif|konsinyasi|deposit|penjaminan|asuransi|garansi|biaya admin|biaya operasional|biaya overhead|biaya koreksi|biaya penyesuaian|biaya transaksi|biaya jasa|biaya layanan|biaya paket|biaya komisi|biaya potongan|biaya tambahan|biaya lain|biaya lainnya|biaya lainnya/i.test(header)) {
       mapping[`cost_${i}`] = original
       usedIndices.add(i)
     }
