@@ -48,7 +48,7 @@ export default function UploadSection({
   const handleConfirmManualMapping = async () => {
     if (!pendingRecords || !pendingHeaders) return
     // Gabungkan mapping otomatis dengan mapping manual
-    const { mapping: autoMapping } = smartMapHeaders(pendingHeaders, marketplace)
+    const { mapping: autoMapping, requiredColumnConfidence } = smartMapHeaders(pendingHeaders, marketplace)
     const mergedMapping = { ...autoMapping }
 
     // Masukkan mapping manual ke dalam mergedMapping
@@ -58,6 +58,22 @@ export default function UploadSection({
         mergedMapping[fieldKey.trim()] = header
       }
     })
+
+    // Verifikasi kolom wajib sudah terpilih setelah pemetaan manual.
+    // Jika productPrice atau settlementAmount belum ada di mergedMapping,
+    // atau confidence-nya di bawah 80, jangan biarkan melanjutkan—
+    // paksa pengguna memilih kolom yang benar di UI manual mapping.
+    const missingRequired = []
+    if (!mergedMapping.productPrice) missingRequired.push('Harga Jual / Omzet Kotor (productPrice)')
+    if (!mergedMapping.settlementAmount) missingRequired.push('Total Dana Bersih Cair (settlementAmount)')
+    const lowConfidence =
+      (requiredColumnConfidence.productPrice !== undefined && requiredColumnConfidence.productPrice < 80) ||
+      (requiredColumnConfidence.settlementAmount !== undefined && requiredColumnConfidence.settlementAmount < 80)
+
+    if (missingRequired.length > 0 || lowConfidence) {
+      setError(`Kolom wajib belum terpilih dengan benar: ${missingRequired.join(', ')}. Silakan pilih ulang di kolom di bawah ini.`)
+      return
+    }
 
     setMappingInfo({
       headers: pendingHeaders,
@@ -69,12 +85,24 @@ export default function UploadSection({
     setManualMapping({})
     setPendingRecords(null)
     setPendingHeaders(null)
-    await onFileProcessed(pendingRecords, mergedMapping, pendingHeaders, fileName || 'file')
+    await onFileProcessed(pendingRecords, mergedMapping, pendingHeaders, fileName || 'file', requiredColumnConfidence)
   }
 
   const handleSkipManualMapping = async () => {
     if (!pendingRecords || !pendingHeaders) return
-    const { mapping: autoMapping } = smartMapHeaders(pendingHeaders, marketplace)
+    const { mapping: autoMapping, requiredColumnConfidence } = smartMapHeaders(pendingHeaders, marketplace)
+
+    // Jangan biarkan melewati pemetaan manual jika kolom wajib confidence < 80.
+    // Ini mencegah hasil Rp 0 atau angka salah dari nama kolom asing marketplace.
+    const lowConfidence =
+      (requiredColumnConfidence.productPrice !== undefined && requiredColumnConfidence.productPrice < 80) ||
+      (requiredColumnConfidence.settlementAmount !== undefined && requiredColumnConfidence.settlementAmount < 80)
+
+    if (lowConfidence) {
+      setError('Nama kolom Omzet Kotor atau Dana Bersih Cair tidak dikenali dengan cukup pasti. Silakan pilih kolom yang sesuai di bawah ini sebelum melanjutkan.')
+      return
+    }
+
     setMappingInfo({
       headers: pendingHeaders,
       mapping: autoMapping,
@@ -85,7 +113,7 @@ export default function UploadSection({
     setManualMapping({})
     setPendingRecords(null)
     setPendingHeaders(null)
-    await onFileProcessed(pendingRecords, autoMapping, pendingHeaders, fileName || 'file')
+    await onFileProcessed(pendingRecords, autoMapping, pendingHeaders, fileName || 'file', requiredColumnConfidence)
   }
 
   const handleFile = async (e) => {
@@ -179,7 +207,7 @@ export default function UploadSection({
       }
 
       setMappingInfo({ headers, mapping, mappedCount: Object.keys(mapping).length })
-      await onFileProcessed(records, mapping, headers, file.name)
+      await onFileProcessed(records, mapping, headers, file.name, requiredColumnConfidence)
     } catch (err) {
       // Jika page.js melempar sinyal zero-safety (total omzet/dana cair nol),
       // tampilkan kotak kuning Fallback Manual Mapping alih-alih dialog error.

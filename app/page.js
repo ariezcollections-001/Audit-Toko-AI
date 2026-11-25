@@ -89,7 +89,7 @@ export default function Home() {
   }, [auditHistory])
 
   const handleFileProcessed = useCallback(
-    async (records, mapping, headers, fileName) => {
+    async (records, mapping, headers, fileName, requiredColumnConfidence = {}) => {
       setShowUploadLoading(true)
       setUploadStartTime(Date.now())
 
@@ -104,6 +104,18 @@ export default function Home() {
         // menampilkan kotak kuning Fallback Manual Mapping.
         if (records.length > 0 &&
             (result.summary.totalGross <= 0 || result.summary.settlementAmount <= 0)) {
+          throw new Error('ZERO_SAFETY_TRIGGERED')
+        }
+
+        // === Strict Confidence Check di page.js (lapisan pertahanan kedua) ===
+        // Jika kolom wajib (productPrice / settlementAmount) confidence < 80,
+        // jangan terima hasil analisis—lempar sinyal agar UploadSection
+        // menampilkan kotak kuning Fallback Manual Mapping.
+        const requiredConfidenceBelowThreshold =
+          (requiredColumnConfidence.productPrice !== undefined && requiredColumnConfidence.productPrice < 80) ||
+          (requiredColumnConfidence.settlementAmount !== undefined && requiredColumnConfidence.settlementAmount < 80)
+
+        if (records.length > 0 && requiredConfidenceBelowThreshold) {
           throw new Error('ZERO_SAFETY_TRIGGERED')
         }
 
