@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { FileSpreadsheet, AlertCircle, RefreshCw } from 'lucide-react'
 import {
   parseExcelFile,
@@ -28,6 +28,8 @@ export default function UploadSection({
   const [manualMapping, setManualMapping] = useState({})
   const [pendingRecords, setPendingRecords] = useState(null)
   const [pendingHeaders, setPendingHeaders] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const fileInputRef = useRef(null)
 
   const handleRetryUpload = () => {
     setError(null)
@@ -38,7 +40,7 @@ export default function UploadSection({
     setManualMapping({})
     setPendingRecords(null)
     setPendingHeaders(null)
-    document.getElementById('uploadFileInput')?.click()
+    fileInputRef.current?.click()
   }
 
   const handleManualMappingChange = (header, fieldKey) => {
@@ -117,8 +119,17 @@ export default function UploadSection({
   }
 
   const handleFile = async (e) => {
+    // Reset nilai input agar event onChange selalu terpicu meskipun pengguna
+    // memilih file yang sama atau membatalkan dialog file sebelumnya.
+    e.target.value = ''
     const file = e.target.files[0]
-    if (file) await processFile(file)
+    if (!file) return
+    setIsProcessing(true)
+    setError(null)
+    await processFile(file)
+    // Reset kembali setelah diproses untuk keandalan percobaan unggah berikutnya.
+    e.target.value = ''
+    setIsProcessing(false)
   }
 
   const handleDrop = async (e) => {
@@ -293,18 +304,27 @@ export default function UploadSection({
             <div className="relative flex flex-col sm:flex-row gap-4 justify-center">
               <label
                 className="group inline-flex items-center gap-3 px-7 py-4 btn-gradient text-white rounded-2xl font-semibold shadow-premium hover:shadow-xl cursor-pointer min-w-[240px] justify-center"
-                onClick={() => document.getElementById('uploadFileInput')?.click()}
+                onClick={() => fileInputRef.current?.click()}
               >
                 <FileSpreadsheet className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                Pilih File Excel/CSV
+                {isProcessing ? 'Membaca & menganalisis file...' : 'Pilih File Excel/CSV'}
                 <input
+                  ref={fileInputRef}
                   id="uploadFileInput"
                   type="file"
                   accept=".xlsx,.csv"
                   className="file-input-hidden"
+                  onClick={(e) => {
+                    e.target.value = ''
+                  }}
                   onChange={handleFile}
                 />
               </label>
+              {isProcessing && (
+                <span className="text-xs text-slate-500 mt-2 flex justify-center w-full">
+                  Membaca & menganalisis file…
+                </span>
+              )}
             </div>
 
             {fileName && (
