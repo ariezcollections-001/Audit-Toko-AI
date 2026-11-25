@@ -11,6 +11,8 @@ import {
   ChevronUp,
   ChevronDown,
   Loader2,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import { formatRupiah, formatPercent, calculateRecommendedPrice, generateMassUpdateExcel } from '../lib/analysis'
 import HppInputTable from './HppInputTable'
@@ -56,12 +58,21 @@ export default function ResultsSection({
   const [packingMode, setPackingMode] = useState({})
   const [packingCostPerProduct, setPackingCostPerProduct] = useState({})
   const [adCostPeriod, setAdCostPeriod] = useState(adCost)
+  const [isPriceTableZoomed, setIsPriceTableZoomed] = useState(false)
 
   // Sinkronkan adCostPeriod dengan prop adCost dari page.js agar
   // perubahan biaya iklan langsung tercermin di perhitungan Langkah 3
   useEffect(() => {
     setAdCostPeriod(adCost)
   }, [adCost])
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && isPriceTableZoomed) setIsPriceTableZoomed(false)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [isPriceTableZoomed])
 
   // Gulir otomatis ke "Ringkasan Laba Bersih Toko" setelah pembayaran QRIS berhasil
   useEffect(() => {
@@ -609,17 +620,37 @@ const totalHpp = summary?.totalHpp || 0
         ) : null}
 
         {isPaid || isAlreadyPaid ? (
-          <>
+          <div className={isPriceTableZoomed ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 md:p-8' : ''}>
+            {isPriceTableZoomed && (
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={() => setIsPriceTableZoomed(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-200 text-sm font-medium shadow-sm"
+                >
+                  <Minimize2 className="w-4 h-4" /> Perkecil Layar
+                </button>
+              </div>
+            )}
             {/* ============================================================
                LANGKAH 4 — REKOMENDASI HARGA JUAL BARU 7 KOLOM (Hanya setelah bayar)
                ============================================================ */}
-            <div className="text-center mb-6">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                Rekomendasi Harga Jual Baru
-              </h2>
-              <p className="text-lg text-gray-600">
-                Pilih Profit Yang Anda Inginkan, dan sistem akan menghitung harga jual baru yang optimal untuk setiap produk.
-              </p>
+            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                  Rekomendasi Harga Jual Baru
+                </h2>
+                <p className="text-lg text-gray-600">
+                  Pilih Profit Yang Anda Inginkan, dan sistem akan menghitung harga jual baru yang optimal untuk setiap produk.
+                </p>
+              </div>
+              {!isPriceTableZoomed && (
+                <button
+                  onClick={() => setIsPriceTableZoomed(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+                >
+                  <Maximize2 className="w-4 h-4" /> Perbesar Layar
+                </button>
+              )}
             </div>
 
             {/* Target Profit Bar — dipindahkan tepat di atas tabel Langkah 4 */}
@@ -675,7 +706,25 @@ const totalHpp = summary?.totalHpp || 0
               packingMode={packingMode}
             />
             </div>
-          </>
+            {isPriceTableZoomed && (unlocked || isAlreadyPaid) && (
+              <div className="mt-8 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Unduh File Perbaikan</h3>
+                  <p className="text-sm text-gray-600">
+                    File Excel berisi daftar produk yang perlu update harga jual berdasarkan HPP dan target profit yang Sudah Anda pilih, Sebesar = {(targetProfit * 100).toFixed(0)}%.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDownloadExcel}
+                  disabled={products.length === 0}
+                  className={`w-full btn-gradient text-white rounded-2xl font-semibold shadow-premium hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-premium transition-all inline-flex items-center justify-center gap-2 px-6 py-4`}
+                >
+                  <Download className="w-5 h-5" />
+                  Unduh File Mass Update Harga
+                </button>
+              </div>
+            )}
+          </div>
         ) : null}
 
         {isAlreadyPaid ? (
@@ -812,7 +861,7 @@ const totalHpp = summary?.totalHpp || 0
           </div>
         )}
 
-        {(unlocked || isAlreadyPaid) && (
+        {(unlocked || isAlreadyPaid) && !isPriceTableZoomed && (
           <div className="mt-8 flex items-center justify-between">
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Unduh File Perbaikan</h3>

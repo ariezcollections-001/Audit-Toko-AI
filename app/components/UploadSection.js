@@ -119,16 +119,15 @@ export default function UploadSection({
   }
 
   const handleFile = async (e) => {
-    // Reset nilai input agar event onChange selalu terpicu meskipun pengguna
-    // memilih file yang sama atau membatalkan dialog file sebelumnya.
-    e.target.value = ''
+    // Baca file terlebih dahulu sebelum nilai input direset
     const file = e.target.files[0]
     if (!file) return
+    // Reset nilai input setelah file terbaca agar onChange selalu terpicu
+    // meskipun pengguna memilih file yang sama atau membatalkan dialog sebelumnya.
+    e.target.value = ''
     setIsProcessing(true)
     setError(null)
     await processFile(file)
-    // Reset kembali setelah diproses untuk keandalan percobaan unggah berikutnya.
-    e.target.value = ''
     setIsProcessing(false)
   }
 

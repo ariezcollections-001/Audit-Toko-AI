@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatRupiah } from '../lib/analysis'
-import { DollarSign, RefreshCw } from 'lucide-react'
+import { DollarSign, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 
 export default function HppInputTable({
   products,
@@ -19,6 +19,16 @@ export default function HppInputTable({
   isPaid = false,
 }) {
 
+  const [isZoomed, setIsZoomed] = useState(false)
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && isZoomed) setIsZoomed(false)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [isZoomed])
+
   const handleHppChange = (productId, value) => {
     const num = value === '' ? 0 : parseFloat(value) || 0
     onHppChange(productId, num)
@@ -30,7 +40,7 @@ export default function HppInputTable({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shadow-premium">
+    <div className={isZoomed ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 md:p-8' : 'bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shadow-premium'}>
       <div className="px-6 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <DollarSign className="w-5 h-5 text-slate-600" />
@@ -42,6 +52,13 @@ export default function HppInputTable({
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 text-sm font-medium transition shadow-sm shadow-hover"
           >
             <RefreshCw className="w-4 h-4" /> Reset Semua ke 0
+          </button>
+          <button
+            onClick={() => setIsZoomed(!isZoomed)}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover ${isZoomed ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200' : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'}`}
+          >
+            {isZoomed ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isZoomed ? 'Selesai & Perkecil Layar' : 'Perbesar Layar'}
           </button>
         </div>
       </div>
