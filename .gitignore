@@ -34,3 +34,6 @@ Thumbs.db
 .eslintcache
 .stylelintcache
 coverage/
+
+# Data folder untuk tiket dukungan (jangan diunggah ke GitHub)
+data/
