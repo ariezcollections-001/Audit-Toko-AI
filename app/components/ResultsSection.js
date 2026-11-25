@@ -621,37 +621,44 @@ const totalHpp = summary?.totalHpp || 0
 
         {isPaid || isAlreadyPaid ? (
           <div className={isPriceTableZoomed ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 md:p-8' : ''}>
-            {isPriceTableZoomed && (
-              <div className="mb-6 flex justify-end">
-                <button
-                  onClick={() => setIsPriceTableZoomed(false)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-200 text-sm font-medium shadow-sm"
-                >
-                  <Minimize2 className="w-4 h-4" /> Perkecil Layar
-                </button>
-              </div>
-            )}
-            {/* ============================================================
-               LANGKAH 4 — REKOMENDASI HARGA JUAL BARU 7 KOLOM (Hanya setelah bayar)
-               ============================================================ */}
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                  Rekomendasi Harga Jual Baru
-                </h2>
-                <p className="text-lg text-gray-600">
-                  Pilih Profit Yang Anda Inginkan, dan sistem akan menghitung harga jual baru yang optimal untuk setiap produk.
-                </p>
-              </div>
-              {!isPriceTableZoomed && (
-                <button
-                  onClick={() => setIsPriceTableZoomed(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-                >
-                  <Maximize2 className="w-4 h-4" /> Perbesar Layar
-                </button>
+            {/* Sticky header bar */}
+            <div className={isPriceTableZoomed ? 'sticky top-0 z-20 bg-slate-50 border-b px-4 md:px-6 py-4 mb-4 md:mb-6' : 'mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4'}>
+              {isPriceTableZoomed ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <h2 className="font-bold text-gray-900 text-lg md:text-xl">Rekomendasi Harga Jual Baru</h2>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setIsPriceTableZoomed(false)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
+                    >
+                      <Minimize2 className="w-4 h-4" /> Perkecil Layar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                      Rekomendasi Harga Jual Baru
+                    </h2>
+                    <p className="text-lg text-gray-600">
+                      Pilih Profit Yang Anda Inginkan, dan sistem akan menghitung harga jual baru yang optimal untuk setiap produk.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsPriceTableZoomed(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+                  >
+                    <Maximize2 className="w-4 h-4" /> Perbesar Layar
+                  </button>
+                </>
               )}
             </div>
+
+            {/* Scrollable content wrapper */}
+            <div className={isPriceTableZoomed ? 'pt-6 md:pt-8' : ''}>
 
             {/* Target Profit Bar — dipindahkan tepat di atas tabel Langkah 4 */}
             <div className="mb-6">
@@ -724,6 +731,28 @@ const totalHpp = summary?.totalHpp || 0
                 </button>
               </div>
             )}
+            
+            {/* Download button - only when normal mode */}
+            {!isPriceTableZoomed && (unlocked || isAlreadyPaid) && (
+              <div className="mt-8 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Unduh File Perbaikan</h3>
+                  <p className="text-sm text-gray-600">
+                    File Excel berisi daftar produk yang perlu update harga jual berdasarkan HPP dan target profit yang Sudah Anda pilih, Sebesar = {(targetProfit * 100).toFixed(0)}%.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDownloadExcel}
+                  disabled={products.length === 0}
+                  className={`w-full btn-gradient text-white rounded-2xl font-semibold shadow-premium hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-premium transition-all inline-flex items-center justify-center gap-2 px-6 py-4`}
+                >
+                  <Download className="w-5 h-5" />
+                  Unduh File Mass Update Harga
+                </button>
+              </div>
+            )}
+            
+            </div>
           </div>
         ) : null}
 

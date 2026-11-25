@@ -41,29 +41,59 @@ export default function HppInputTable({
 
   return (
     <div className={isZoomed ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 md:p-8' : 'bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shadow-premium'}>
-      <div className="px-6 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <DollarSign className="w-5 h-5 text-slate-600" />
-          <h3 className="font-bold text-slate-900">Input Modal & Packing</h3>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onHppChange('RESET_ALL', 0)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 text-sm font-medium transition shadow-sm shadow-hover"
-          >
-            <RefreshCw className="w-4 h-4" /> Reset Semua ke 0
-          </button>
-          <button
-            onClick={() => setIsZoomed(!isZoomed)}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover ${isZoomed ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200' : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'}`}
-          >
-            {isZoomed ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            {isZoomed ? 'Selesai & Perkecil Layar' : 'Perbesar Layar'}
-          </button>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
+      {isZoomed ? (
+        <>
+          <div className="sticky top-0 z-20 bg-slate-50 border-b px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-5 h-5 text-slate-600" />
+              <div>
+                <h3 className="font-bold text-slate-900">Input Modal & Packing</h3>
+                <p className="text-sm text-slate-500">Isi Harga Modal (HPP) & Biaya Packing per produk untuk melihat status laba/rugi</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => onHppChange('RESET_ALL', 0)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 text-sm font-medium transition shadow-sm shadow-hover"
+              >
+                <RefreshCw className="w-4 h-4" /> Reset Semua ke 0
+              </button>
+              <button
+                onClick={() => setIsZoomed(false)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
+              >
+                <Minimize2 className="w-4 h-4" /> Selesai & Perkecil Layar
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="px-6 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-5 h-5 text-slate-600" />
+              <h3 className="font-bold text-slate-900">Input Modal & Packing</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => onHppChange('RESET_ALL', 0)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 text-sm font-medium transition shadow-sm shadow-hover"
+              >
+                <RefreshCw className="w-4 h-4" /> Reset Semua ke 0
+              </button>
+              <button
+                onClick={() => setIsZoomed(!isZoomed)}
+                className=`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover ${isZoomed ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200' : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'}`}
+              >
+                {isZoomed ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isZoomed ? 'Selesai & Perkecil Layar' : 'Perbesar Layar'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      <div className="pt-6 md:pt-8">
+        <div className="overflow-x-auto">
         {totalAllUnits > 0 && (
           <div className="px-6 py-3 mb-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm font-semibold text-blue-800">
@@ -272,7 +302,6 @@ export default function HppInputTable({
             </table>
           </div>
         </div>
-      )}
 
       {/* Peringatan HPP Belum Diisi — hanya setelah bayar agar tidak menyesatkan */}
       {isPaid && products.some((p) => (Number(p.hpp) || 0) === 0) && (
@@ -294,6 +323,7 @@ export default function HppInputTable({
         
         </p>
       </div>
+    </div>
     </div>
   )
 }
