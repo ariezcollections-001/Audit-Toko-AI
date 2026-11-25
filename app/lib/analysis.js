@@ -12,7 +12,9 @@ const COLUMN_ALIASES = {
     'nomor order', 'no pemesanan', 'id order', 'order id shopee', 'order id tiktok',
     'order id tokopedia', 'order id lazada', 'order id bukalapak',
     'nomor invoice', 'no invoice', 'invoice number', 'invoice no',
-    'order reference', 'referensi pesanan', 'nomor pesanan'
+    'order reference', 'referensi pesanan', 'nomor pesanan',
+    // Alias Bukalapak (No. Pesanan / Tagihan)
+    'id tagihan', 'nomor tagihan'
   ],
   productName: [
     'product name', 'nama produk', 'namaproduk', 'produk', 'item name',
@@ -20,7 +22,9 @@ const COLUMN_ALIASES = {
     'nama item produk', 'nama produk shopee', 'nama produk tiktok',
     'nama produk tokopedia', 'nama produk lazada', 'nama produk bukalapak',
     'barang yang dijual', 'nama barang terjual', 'sku produk', 'item',
-    'product title', 'judul produk', 'deskripsi produk'
+    'product title', 'judul produk', 'deskripsi produk',
+    // Alias Bukalapak (Nama Produk)
+    'judul barang', 'nama barang'
   ],
   sku: [
     'sku', 'kode produk', 'kodebarang', 'product sku', 'item sku',
@@ -41,7 +45,10 @@ const COLUMN_ALIASES = {
     'payout amount', 'net settlement', 'total payout amount',
     'pendapatan marketplace', 'pendapatan toko', 'penghasilan toko',
     // Alias bahasa Inggris TikTok Shop (Dana Bersih Cair / Net Payout)
-    'net settlement amount'
+    'net settlement amount',
+    'dana masuk rekening', 'dana masuk', 'uang masuk', 'transfer ke rekening',
+    // Alias Bukalapak (Dana Remit / Pencairan)
+    'dana remit', 'dana remit seller', 'total remit', 'pencairan dana'
   ],
   shippingFee: [
     'shipping fee', 'ongkir', 'biaya kirim', 'ongkos kirim',
@@ -63,7 +70,9 @@ const COLUMN_ALIASES = {
     'biaya komisi lazada', 'komisi lazada', 'biaya komisi bukalapak',
     'komisi bukalapak', 'fee platform', 'marketplace fee', 'biaya marketplace',
     'biaya jasa platform', 'potongan platform', 'potongan komisi',
-    'biaya admin marketplace', 'admin marketplace', 'biaya transaksi platform'
+    'biaya admin marketplace', 'admin marketplace', 'biaya transaksi platform',
+    // Alias Bukalapak (Potongan Marketplace)
+    'potongan super seller', 'biaya super seller'
   ],
   affiliateCommission: [
     'affiliate commission', 'komisi afiliasi', 'affiliate fee',
@@ -86,7 +95,9 @@ const COLUMN_ALIASES = {
     'harga jual per unit', 'harga produkn', 'original price', 'harga asli',
     // Alias bahasa Inggris TikTok Shop (kolom total baris / harga satuan produk)
     'gross product sales', 'total product sales',
-    'unit retail price', 'retail price'
+    'unit retail price', 'retail price',
+    // Alias Bukalapak (Omzet Kotor / Harga Barang)
+    'total harga barang'
   ],
   quantity: [
     'quantity', 'qty', 'jumlah', 'jumlah terjual', 'terjual',
@@ -120,7 +131,9 @@ const COLUMN_ALIASES = {
     'kode voucher', 'promo', 'potongan promo', 'potongan voucher shopee',
     'voucher shopee', 'voucher tiktok', 'voucher tokopedia', 'voucher lazada',
     'voucher bukalapak', 'diskon promo', 'kode promo', 'potongan diskon',
-    'diskon voucher pembeli', 'voucher pembeli'
+    'diskon voucher pembeli', 'voucher pembeli',
+    // Alias Bukalapak (Voucher Lapak)
+    'voucher lapak'
   ],
   subsidi: [
     'subsidi', 'subsidi ongkir', 'subsidi biaya kirim', 'bantuan ongkir',
@@ -161,7 +174,9 @@ const COLUMN_ALIASES = {
   ],
   promoFee: [
     'biaya promosi', 'biaya promo', 'promo fee',
-    'biaya promosi shopee', 'promo fee shopee', 'biaya iklan promosi'
+    'biaya promosi shopee', 'promo fee shopee', 'biaya iklan promosi',
+    // Alias Bukalapak (Biaya Fitur Promosi)
+    'biaya fitur promosi'
   ],
   otherFee: [
     'biaya lainnya', 'biaya lain-lain', 'other fee',
@@ -169,7 +184,9 @@ const COLUMN_ALIASES = {
   ],
   adminFee: [
     'biaya administrasi', 'biaya admin', 'admin fee',
-    'biaya administrasi shopee', 'admin fee shopee', 'biaya admin marketplace'
+    'biaya administrasi shopee', 'admin fee shopee', 'biaya admin marketplace',
+    // Alias Bukalapak (Biaya Admin Transaksi)
+    'biaya admin transaksi'
   ],
   shippingDifference: [
     'selisih ongkir', 'selisih Ongkir', 'shipping difference',
@@ -266,7 +283,7 @@ const COLUMN_ALIASES = {
   ],
   paymentFee: [
     'biaya pembayaran', 'payment fee', 'biaya transaksi pembayaran',
-    'biaya pembayaran marketplace', 'biaya pembayaran online'
+    'biaya pembayaran marketplace', 'biaya pembayaran online', 'biaya metode pembayaran'
   ],
   penaltyFee: [
     'denda', 'penalty', 'biaya denda', 'potongan denda',
@@ -521,18 +538,22 @@ function getLazadaColumnAliases() {
 }
 
 const BUKALAPAK_COLUMN_ALIASES = {
-  orderId: ['kode transaksi', 'kode transaksi bukalapak'],
-  productName: ['nama barang', 'nama barang bukalapak'],
+  orderId: ['kode transaksi', 'kode transaksi bukalapak', 'id tagihan', 'nomor tagihan'],
+  productName: ['nama barang', 'nama barang bukalapak', 'judul barang'],
   sku: ['sku'],
-  settlementAmount: ['total dana diterima'],
+  settlementAmount: ['total dana diterima', 'dana remit', 'dana remit seller', 'total remit', 'pencairan dana'],
   shippingFee: ['ongkos kirim pembeli', 'ongkos kirim kurir'],
-  platformCommission: ['biaya komisi bukalapak', 'biaya komisi'],
+  platformCommission: ['biaya komisi bukalapak', 'biaya komisi', 'potongan super seller', 'biaya super seller'],
   affiliateCommission: [],
-  refund: ['refund'],
-  productPrice: ['harga barang'],
-  quantity: ['jumlah'],
+  refund: ['refund', 'pengembalian dana'],
+  productPrice: ['harga barang', 'total harga barang'],
+  quantity: ['jumlah', 'jumlah barang'],
   buyerShipping: ['ongkos kirim pembeli'],
-  resi: ['resi', 'tracking number']
+  resi: ['resi', 'tracking number'],
+  // Potongan tambahan Bukalapak
+  adminFee: ['biaya admin transaksi'],
+  promoFee: ['biaya fitur promosi'],
+  voucher: ['voucher lapak']
 }
 
 const TIKTOK_COLUMN_ALIASES = getTikTokColumnAliases()
@@ -676,6 +697,12 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
   }
 
+  // Ambang keyakinan untuk kolom wajib (productPrice & settlementAmount)
+  // Jika di bawah 80, dianggap tidak yakin dan harus memicu Fallback Manual Mapping.
+  const STRICT_CONFIDENCE = 80
+  const REQUIRED_COLUMNS = ['productPrice', 'settlementAmount']
+  const requiredColumnConfidence = {}
+
   for (const [key, alias] of Object.entries(aliases)) {
     let bestScore = 0
     let bestIdx = -1
@@ -689,9 +716,16 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
         }
       }
     }
-    if (bestScore >= 50 && bestIdx >= 0) {
+    // Kolom wajib memakai ambang 80, kolom lainnya tetap 50
+    const threshold = REQUIRED_COLUMNS.includes(key) ? STRICT_CONFIDENCE : 50
+    if (bestScore >= threshold && bestIdx >= 0) {
       mapping[key] = headers[bestIdx]
       usedIndices.add(bestIdx)
+      if (REQUIRED_COLUMNS.includes(key)) {
+        requiredColumnConfidence[key] = bestScore
+      }
+    } else if (REQUIRED_COLUMNS.includes(key)) {
+      requiredColumnConfidence[key] = bestScore
     }
   }
 
@@ -731,7 +765,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
   }
 
-  return { mapping, headers }
+  return { mapping, headers, requiredColumnConfidence }
 }
 
 /* ============================================================================
@@ -1155,6 +1189,7 @@ initShopeeDeductionColumns()
     { key: 'adjustmentFee', label: 'Biaya Penyesuaian Pesanan' },
     { key: 'salesDiscount', label: 'Diskon Penjual (Tambahan)' },
     { key: 'commission', label: 'Komisi' },
+    { key: 'paymentFee', label: 'Biaya Pembayaran' },
     { key: 'shippingDifference', label: 'Selisih Ongkir' },
   ]
   const seenDeductionKeys = new Set()

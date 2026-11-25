@@ -127,13 +127,17 @@ export default function UploadSection({
       const parsed = await parseExcelFile(file)
       headers = parsed.headers
       records = parsed.records
-      const { mapping } = smartMapHeaders(headers, marketplace)
+      const { mapping, requiredColumnConfidence } = smartMapHeaders(headers, marketplace)
+
+      // === Strict Confidence Check: kolom wajib (productPrice & settlementAmount) ===
+      // Jika skor keyakinan untuk Omzet Kotor atau Dana Bersih Cair di bawah 80,
+      // artinya nama kolom asing dari marketplace yang tidak dikenali. Jangan tebak
+      // kolom acak—picu Fallback Manual Mapping agar pengguna memilih kolom yang benar.
+      const requiredConfidenceBelowThreshold =
+        (requiredColumnConfidence.productPrice !== undefined && requiredColumnConfidence.productPrice < 80) ||
+        (requiredColumnConfidence.settlementAmount !== undefined && requiredColumnConfidence.settlementAmount < 80)
 
       // === Zero-Safety Trigger: jangan biarkan halaman hasil Rp 0 tercapai ===
-      // Jika ada baris data namun total omzet kotor atau total dana cair <= 0,
-      // BLOKIR perpindahan ke ResultsSection dan WAJIB tampilkan kotak kuning
-      // Fallback Manual Mapping agar pengguna dapat memilih ulang kolom
-      // Harga Jual / Omzet Kotor dan Total Penghasilan / Dana Cair.
       let totalGross = 0
       let settlementAmount = 0
       if (records.length > 0) {
@@ -141,7 +145,7 @@ export default function UploadSection({
         totalGross = summary.totalGross || 0
         settlementAmount = summary.settlementAmount || 0
       }
-      if (records.length > 0 && (totalGross <= 0 || settlementAmount <= 0)) {
+      if (records.length > 0 && (requiredConfidenceBelowThreshold || totalGross <= 0 || settlementAmount <= 0)) {
         setPendingRecords(records)
         setPendingHeaders(headers)
         // Semua header tersedia agar pengguna dapat memilih ulang semua kolom
