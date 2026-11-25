@@ -293,7 +293,7 @@ const totalHpp = summary?.totalHpp || 0
             Audit Dana Marketplace
           </h2>
           <p className="text-lg text-gray-600">
-            Rincian dana & potongan marketplace — data asli diambil dari file Excel Anda.
+            Rincian dana & potongan marketplace — data asli yang diambil dari file Excel Anda.
           </p>
         </div>
 
@@ -817,7 +817,7 @@ const totalHpp = summary?.totalHpp || 0
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Unduh File Perbaikan</h3>
               <p className="text-sm text-gray-600">
-                File Excel berisi daftar produk yang perlu update harga jual berdasarkan HPP dan target profit {(targetProfit * 100).toFixed(0)}%.
+                File Excel berisi daftar produk yang perlu update harga jual berdasarkan HPP dan target profit yang Sudah Anda pilih, Sebesar = {(targetProfit * 100).toFixed(0)}%.
               </p>
             </div>
             <button

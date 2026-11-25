@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { MessageCircle, Send, Mail, Sparkles, X, Edit, CheckCircle } from 'lucide-react'
-
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { MessageCircle, Send, Mail, Sparkles, X, Loader2, CheckCircle } from 'lucide-react'
 export default function AiChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
@@ -10,12 +9,22 @@ export default function AiChatWidget() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [showSupportForm, setShowSupportForm] = useState(false)
-  const [supportContact, setSupportContact] = useState('')
   const [supportMessage, setSupportMessage] = useState('')
   const [supportSubmitting, setSupportSubmitting] = useState(false)
   const [showSupportConfirmation, setShowSupportConfirmation] = useState(false)
 
   const MAX_MESSAGES = 10
+
+  const messagesEndRef = useRef(null)
+
+  // Scroll otomatis ke pesan terbaru setiap kali pesan, loading, atau pembukaan chat berubah
+  useEffect(() => {
+    // Tunggu sedikit agar DOM siap sebelum scroll
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [messages, isLoading, isOpen])
 
   const quickQuestions = [
     'Bagaimana cara unduh file laporan Excel dari Shopee / TikTok?',
@@ -28,7 +37,7 @@ export default function AiChatWidget() {
       const greeting = {
         role: 'assistant',
         text:
-          'Halo! Saya Asisten AuditToko AI. Ada yang bisa dibantu soal cara unduh laporan Excel atau hitungan profit toko Anda?',
+          'Halo Kak! Saya Asisten AuditToko AI. Ada yang bisa dibantu Kak soal cara unduh laporan Excel atau hitungan profit toko Anda?',
       }
       setMessages([greeting])
     }
@@ -48,13 +57,13 @@ export default function AiChatWidget() {
   const getLocalAnswer = useCallback((text) => {
     const lower = text.toLowerCase()
     if (lower.includes('unduh file laporan excel') || lower.includes('cara unduh')) {
-      return 'Untuk unduh laporan: masuk ke Seller Center Shopee/TikTok Shop → menu Laporan/Penjualan → Detail Transaksi → pilih rentang waktu → format .xlsx → klik Unduh. Lalu unggah file tersebut ke AuditToko AI untuk dianalisis.'
+      return 'Untuk unduh laporan Kak: masuk ke Seller Center Shopee/TikTok Shop → menu Laporan/Penjualan → Detail Transaksi → pilih rentang waktu → format .xlsx → klik Unduh. Lalu unggah file tersebut ke AuditToko AI untuk dianalisis, ya Kak.'
     }
     if (lower.includes('aman') || lower.includes('keamanan') || lower.includes('data penjualan') || lower.includes('hpp')) {
-      return 'Data Anda aman. Semua pemrosesan dilakukan secara lokal di browser Anda—file laporan tidak diunggah ke server kami. Riwayat audit hanya tersimpan di localStorage perangkat Anda, dapat dihapus kapan saja.'
+      return 'Untuk Data aman Kak. Semua pemrosesan dilakukan secara lokal di browser Kakak—file laporan tidak diunggah ke server kami. Riwayat audit hanya tersimpan di localStorage perangkat Kakak, dapat dihapus kapan saja.'
     }
     if (lower.includes('apa saja yang saya dapatkan') || lower.includes('rp 15.000') || lower.includes('membuka laporan')) {
-      return 'Setelah pembayaran Rp 15.000, Anda akan mendapatkan: Ringkasan Laba Bersih Toko, Bedah Profit & Margin per produk, Simulasi Target Profit, Rekomendasi Harga Jual Baru (ending .900), dan File Excel Mass Update siap upload.'
+      return 'Setelah pembayaran Rp 15.000, Kakak akan mendapatkan: Ringkasan Laba Bersih Toko, Bedah Profit & Margin per produk, Simulasi Target Profit, Rekomendasi Harga Jual Baru (ending .900), dan File Excel Mass Update siap upload.'
     }
     return null
   }, [])
@@ -69,8 +78,11 @@ export default function AiChatWidget() {
     // Coba jawaban lokal untuk 3 pertanyaan cepat utama
     const localAnswer = getLocalAnswer(text)
     if (localAnswer) {
-      addMessage('assistant', localAnswer)
-      setIsLoading(false)
+      // Tunggu minimal 700ms agar spinner loading terlihat sebelum jawaban muncul
+      setTimeout(() => {
+        addMessage('assistant', localAnswer)
+        setIsLoading(false)
+      }, 700)
       return
     }
 
@@ -92,7 +104,7 @@ export default function AiChatWidget() {
       addMessage('assistant', data.reply || 'Maaf, saya tidak dapat menjawab saat ini.')
     } catch (err) {
       const fallback =
-        'Maaf, asisten AI sedang tidak tersedia saat ini (API key belum dikonfigurasi di server). Anda tetap bisa mencoba fitur audit di website ini, atau kirim laporan kendala melalui tombol di bawah chat.'
+        'Maaf Kak, asisten AI sedang tidak tersedia saat ini (API key belum dikonfigurasi di server). Anda tetap bisa mencoba fitur audit di website ini.'
       addMessage('assistant', fallback)
       setError(fallback)
     } finally {
@@ -105,44 +117,37 @@ export default function AiChatWidget() {
   }
 
   const handleOpenSupportForm = () => {
-    // Pre-fill message dari terakhir user message jika ada (ringkasan keluhan)
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
-    if (lastUserMsg) {
-      setSupportMessage(lastUserMsg.text)
-    }
     setShowSupportForm(true)
     setShowSupportConfirmation(false)
   }
 
   const handleCloseSupportForm = () => {
     setShowSupportForm(false)
-    setSupportContact('')
     setSupportMessage('')
     setShowSupportConfirmation(false)
   }
 
   const handleSupportSubmit = async (e) => {
     e.preventDefault()
-    if (!supportContact.trim() || !supportMessage.trim()) return
+    if (!supportMessage.trim()) return
     setSupportSubmitting(true)
     try {
       const res = await fetch('/api/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contact: supportContact.trim(), message: supportMessage.trim() }),
+        body: JSON.stringify({ contact: '', message: supportMessage.trim() }),
       })
       if (!res.ok) throw new Error('Gagal mengirim pesan')
       setShowSupportForm(false)
-      setSupportContact('')
       setSupportMessage('')
       setSupportSubmitting(false)
       setShowSupportConfirmation(true)
-      addMessage('assistant', 'Terima kasih! Pesan Anda telah masuk ke Kotak Masuk Admin dan akan segera kami tindak lanjuti.')
     } catch (err) {
       setError('Gagal mengirim pesan ke admin. Silakan coba lagi.')
       setSupportSubmitting(false)
     }
   }
+
   return (
     <>
       {/* Tombol Mengambang "Tanya Asisten AI" — TANPA backdrop-blur overlay di belakang */}
@@ -176,6 +181,7 @@ export default function AiChatWidget() {
               {messages.map((m, idx) => (
                 <div
                   key={idx}
+                  ref={idx === messages.length - 1 ? messagesEndRef : null}
                   className={`max-w-[85%] p-3 rounded-2xl ${
                     m.role === 'user'
                       ? 'ml-auto bg-blue-600 text-white text-sm'
@@ -193,6 +199,15 @@ export default function AiChatWidget() {
               {messages.length === 0 && (
                 <div className="max-w-[85%] p-3 rounded-2xl bg-slate-100 text-slate-500 text-sm mr-auto italic">
                   Mulai obrolan dengan asisten AI…
+                </div>
+              )}
+              {isLoading && (
+                <div
+                  ref={messagesEndRef}
+                  className="max-w-[85%] p-3 rounded-2xl bg-slate-100 text-slate-800 text-sm mr-auto flex items-center gap-2 animate-pulse"
+                >
+                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  <span>Asisten AI mengetik…</span>
                 </div>
               )}
             </div>
@@ -224,7 +239,7 @@ export default function AiChatWidget() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
-                placeholder="Ketik pertanyaan Anda di sini…"
+                placeholder="Ketik pertanyaan kakak di sini…"
                 className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-50"
                 disabled={isLoading}
               />
@@ -237,7 +252,7 @@ export default function AiChatWidget() {
               </button>
             </div>
 
-            {/* Form Pesan ke Admin (Kotak Masuk Admin) */}
+            {/* Deskripsi Kontak Admin + Tombol Kirim Pesan (tidak ada input email) */}
             {showSupportConfirmation ? (
               <div className="p-3 border-t border-emerald-100 bg-emerald-50 rounded-b-2xl flex flex-col items-center gap-2">
                 <CheckCircle className="w-6 h-6 text-emerald-600" />
@@ -252,49 +267,39 @@ export default function AiChatWidget() {
                 </button>
               </div>
             ) : (
-              <>
-                <button
-                  onClick={handleOpenSupportForm}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
-                >
-                  <Mail className="w-4 h-4" />
-                  Kirim Pesan / Kendala ke Admin
-                </button>
+              <div className="p-3 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs text-slate-500 font-medium">
+                    Sampaikan ke Admin Kami Jika Ada Kritik & Saran Ya Kak.
+                  </span>
+                  <button
+                    onClick={handleOpenSupportForm}
+                    className="ml-auto px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-semibold transition-colors"
+                  >
+                  Admin
+                  </button>
+                </div>
 
                 {showSupportForm && (
-                  <div className="p-3 border-t border-slate-100 bg-white rounded-b-2xl">
+                  <div className="mt-2">
                     <form onSubmit={handleSupportSubmit} className="space-y-2">
                       <div>
-                        <label className="block text-[10px] text-slate-500 font-semibold mb-1 uppercase">
-                          Nama / Email / WhatsApp Anda
-                        </label>
-                        <input
-                          type="text"
-                          value={supportContact}
-                          onChange={(e) => setSupportContact(e.target.value)}
-                          placeholder="contoh: andi@email.com atau 08123456789"
-                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-500 font-semibold mb-1 uppercase">
-                          Tulis Kendala atau Pertanyaan Anda
-                        </label>
                         <textarea
                           value={supportMessage}
                           onChange={(e) => setSupportMessage(e.target.value)}
                           rows={2}
-                          placeholder="Ceritakan kendala atau pertanyaan Anda di sini…"
+                          placeholder="Tulis pesan kakak di sini…"
                           className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="flex gap-2">
                         <button
                           type="submit"
-                          disabled={supportSubmitting}
+                          disabled={supportSubmitting || !supportMessage.trim()}
                           className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
                         >
-                          {supportSubmitting ? 'Mengirim…' : 'Kirim ke Admin'}
+                          {supportSubmitting ? 'Mengirim…' : 'Kirim'}
                         </button>
                         <button
                           type="button"
@@ -307,7 +312,7 @@ export default function AiChatWidget() {
                     </form>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

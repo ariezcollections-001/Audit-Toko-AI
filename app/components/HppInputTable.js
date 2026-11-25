@@ -274,7 +274,7 @@ export default function HppInputTable({
 
       <div className="px-6 py-4 border-t border-slate-100 bg-amber-50 border-amber-200 mt-4 rounded-b-2xl">
         <p className="text-xs text-amber-700 font-medium">
-          ⚠️ Masukkan Harga Modal (HPP) dan Biaya Packing anda untuk menghitung Laba/Rugi Bersih sesungguhnya. HPP kosong = 0, tidak ada estimasi otomatis. Semua perhitungan dilakukan per satuan barang (pcs).
+        
         </p>
       </div>
     </div>
