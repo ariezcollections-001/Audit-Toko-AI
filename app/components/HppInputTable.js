@@ -257,4 +257,26 @@ export default function HppInputTable({
         </div>
       )}
 
-      {/* Peringatan HPP Belum Diisi — hanya setelah bayar agar tidak menyesatkan */}\n      {isPaid && products.some((p) => (Number(p.hpp) || 0) === 0) && (\n        <div className="px-6 py-4 border-t border-amber-200 bg-amber-50/50 mt-4 rounded-b-2xl">\n          <div className="flex items-start gap-3">\n            <span className="text-amber-600 font-bold">⚠️</span>\n            <div className="text-sm text-amber-700">\n              <p className="font-semibold">Beberapa produk belum diisi Harga Modal (HPP)</p>\n              <p className="text-[11px] text-amber-600 mt-1">\n                HPP kosong dihitung sebagai Rp 0, sehingga Laba/Rugi yang ditampilkan dapat TIDAK AKURAT dan terlalu tinggi. Silakan isi HPP untuk setiap produk agar hasil audit akurat.\n              </p>\n            </div>\n          </div>\n        </div>\n      )\n\n      <div className="px-6 py-4 border-t border-slate-100 bg-amber-50 border-amber-200 mt-4 rounded-b-2xl">\n        <p className="text-xs text-amber-700 font-medium">\n          ⚠️ Masukkan Harga Modal (HPP) dan Biaya Packing anda untuk menghitung Laba/Rugi Bersih sesungguhnya. HPP kosong = 0, tidak ada estimasi otomatis. Semua perhitungan dilakukan per satuan barang (pcs).\n        </p>\n      </div>\n    </div>\n  )\n}
+      {/* Peringatan HPP Belum Diisi — hanya setelah bayar agar tidak menyesatkan */}
+      {isPaid && products.some((p) => (Number(p.hpp) || 0) === 0) && (
+        <div className="px-6 py-4 border-t border-amber-200 bg-amber-50/50 mt-4 rounded-b-2xl">
+          <div className="flex items-start gap-3">
+            <span className="text-amber-600 font-bold">⚠️</span>
+            <div className="text-sm text-amber-700">
+              <p className="font-semibold">Beberapa produk belum diisi Harga Modal (HPP)</p>
+              <p className="text-[11px] text-amber-600 mt-1">
+                HPP kosong dihitung sebagai Rp 0, sehingga Laba/Rugi yang ditampilkan dapat TIDAK AKURAT dan terlalu tinggi. Silakan isi HPP untuk setiap produk agar hasil audit akurat.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="px-6 py-4 border-t border-slate-100 bg-amber-50 border-amber-200 mt-4 rounded-b-2xl">
+        <p className="text-xs text-amber-700 font-medium">
+          ⚠️ Masukkan Harga Modal (HPP) dan Biaya Packing anda untuk menghitung Laba/Rugi Bersih sesungguhnya. HPP kosong = 0, tidak ada estimasi otomatis. Semua perhitungan dilakukan per satuan barang (pcs).
+        </p>
+      </div>
+    </div>
+  )
+}

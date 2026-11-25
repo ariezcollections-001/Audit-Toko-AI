@@ -31,16 +31,17 @@ const COLUMN_ALIASES = {
   ],
   settlementAmount: [
     'settlement amount', 'total penghasilan', 'totalpendapatan',
-    'pendapatan total', 'amount', 'total amount', 'gross amount',
-    'net amount', 'total receive', 'total diterima', 'jumlah diterima',
+    'pendapatan total', 'amount', 'total amount', 'net amount',
+    'total receive', 'total diterima', 'jumlah diterima',
     'net payout', 'pendapatan bersih', 'pendapatan netto', 'payout',
     'total payout', 'pendapatan akhir', 'saldo akhir',
     'estimasi total penghasilan', 'estimated total income', 'est total income',
-    'total income', 'pendapatan kotor', 'total pendapatan kotor',
-    'pendapatan bersih akhir', 'saldo tersedia', 'dana cair', 'dana tersedia',
+    'total income', 'pendapatan bersih akhir', 'saldo tersedia', 'dana cair', 'dana tersedia',
     'total dana diterima', 'jumlah dana', 'total settlement', 'settlement',
     'payout amount', 'net settlement', 'total payout amount',
-    'pendapatan marketplace', 'pendapatan toko', 'penghasilan toko'
+    'pendapatan marketplace', 'pendapatan toko', 'penghasilan toko',
+    // Alias bahasa Inggris TikTok Shop (Dana Bersih Cair / Net Payout)
+    'net settlement amount'
   ],
   shippingFee: [
     'shipping fee', 'ongkir', 'biaya kirim', 'ongkos kirim',
@@ -69,14 +70,23 @@ const COLUMN_ALIASES = {
     'biaya afiliasi', 'komisi influencer', 'biaya influencer',
     'komisi mitra', 'biaya mitra', 'komisi reseller', 'biaya reseller'
   ],
-  // --- Kolom potongan dari file Excel pelanggan ---
+  // --- Kolom harga jual produk dari file Excel pelanggan ---
+  // Sumber utama "Total Omzet Kotor" (grossSales): kolom subtotal baris
+  // ('Total Harga Produk' / 'Subtotal Produk'; harga per pcs = total / qty).
+  // CATATAN: 'total penghasilan' / 'penghasilan' SENGaja JANGAN dimasukkan di sini —
+  // kolom penghasilan hanya boleh milik settlementAmount (netPayout / Total Dana Bersih Cair),
+  // agar Total Omzet Kotor tidak ikut mengambil nilai Total Penghasilan.
   productPrice: [
+    'total harga produk', 'subtotal produk',
     'harga asli produk', 'product price', 'harga jual', 'price',
     'harga', 'unit price', 'harga satuan', 'harga produk',
     'harga jual produk', 'harga jual satuan', 'harga unit', 'harga barang',
     'harga jual barang', 'paid price', 'harga bayar', 'harga pembeli',
     'harga penjualan', 'harga jual satuan produk', 'price per unit',
-    'harga jual per unit', 'harga produkn', 'original price', 'harga asli'
+    'harga jual per unit', 'harga produkn', 'original price', 'harga asli',
+    // Alias bahasa Inggris TikTok Shop (kolom total baris / harga satuan produk)
+    'gross product sales', 'total product sales',
+    'unit retail price', 'retail price'
   ],
   quantity: [
     'quantity', 'qty', 'jumlah', 'jumlah terjual', 'terjual',
@@ -177,14 +187,20 @@ const COLUMN_ALIASES = {
   ],
   refund: [
     'refund', 'pengembalian dana', 'nominal pengembalian dana', 'jumlah pengembalian dana',
-    'pengembalian', 'biaya retur', 'retur', 'return', 'refund amount', 'total pengembalian',
+    'pengembalian', 'biaya retur', 'retur', 'return', 'total pengembalian',
     'pengembalian dana pembeli', 'biaya pengembalian', 'nominal retur', 'jumlah retur',
     'refund pembeli', 'total refund', 'pengembalian uang'
+  ],
+  orderStatus: [
+    'order status', 'order_status', 'type', 'order type', 'status pesanan', 'status',
+    'jenis pesanan', 'order status shopee', 'order status tiktok'
   ],
   // --- Kolom biaya potongan dari file Excel pelanggan ---
   transactionFee: [
     'biaya transaksi', 'biaya transaksi resmi', 'fee transaksi',
-    'biaya transaksi shopee', 'transaction fee shopee', 'biaya transaksi marketplace'
+    'biaya transaksi shopee', 'transaction fee shopee', 'biaya transaksi marketplace',
+    // Alias bahasa Inggris TikTok Shop
+    'transaction fee'
   ],
   premium: [
     'premi', 'biaya premi', 'asuransi premi',
@@ -192,7 +208,9 @@ const COLUMN_ALIASES = {
   ],
   tax: [
     'pajak', 'pph 22', 'pajak penghasilan', 'tax',
-    'ppn', 'pajak pertambahan nilai', 'biaya pajak', 'pajak transaksi'
+    'ppn', 'pajak pertambahan nilai', 'biaya pajak', 'pajak transaksi',
+    // Alias bahasa Inggris TikTok Shop
+    'tax amount'
   ],
   additionalServiceFee: [
     'biaya layanan tambahan', 'additional service fee', 'biaya tambahan',
@@ -203,7 +221,9 @@ const COLUMN_ALIASES = {
   ],
   shippingDeduction: [
     'potongan ongkos kirim dari shopee', 'shipping deduction', 'potongan ongkir shopee',
-    'deduksi ongkir', 'ongkir ditanggung shopee', 'potongan ongkir'
+    'deduksi ongkir', 'ongkir ditanggung shopee', 'potongan ongkir',
+    // Alias bahasa Inggris TikTok Shop (Potongan Ongkir)
+    'shipping fee deduction'
   ],
   shippingPaidToCourier: [
     'ongkos kirim yang dibayarkan ke jasa kirim', 'shipping paid to courier',
@@ -448,15 +468,21 @@ function getTikTokColumnAliases() {
     orderId: ['order id', 'order id tiktok', 'no order', 'order details id'],
     productName: ['product name', 'product name tiktok', 'nama produk', 'item name'],
     sku: ['sku', 'seller sku'],
-    settlementAmount: ['settlement amount', 'total settlement', 'total pendapatan'],
+    settlementAmount: ['settlement amount', 'total settlement', 'total pendapatan', 'net settlement amount'],
     shippingFee: ['shipping fee', 'customer shipping fee', 'shipping fee tiktok'],
-    platformCommission: ['platform commission', 'platform commission tiktok', 'fee tiktok'],
+    platformCommission: ['platform commission', 'platform commission tiktok', 'fee tiktok', 'platform fee'],
     affiliateCommission: ['affiliate commission', 'affiliate tiktok'],
     refund: ['refund', 'refund tiktok'],
-    productPrice: ['product price', 'price', 'harga jual tiktok'],
+    productPrice: ['product price', 'price', 'harga jual tiktok', 'gross product sales', 'total product sales', 'unit retail price', 'retail price'],
     quantity: ['quantity', 'qty'],
     buyerShipping: ['buyer shipping', 'customer shipping fee'],
-    resi: ['resi', 'tracking number', 'resi tiktok']
+    resi: ['resi', 'tracking number', 'resi tiktok'],
+    orderStatus: ['order status', 'order_status', 'type', 'order type'],
+    shippingDeduction: ['shipping deduction', 'shipping fee deduction'],
+    transactionFee: ['transaction fee'],
+    tax: ['tax amount'],
+    sellerDiscount: ['seller discount'],
+    platformFee: ['platform fee'],
   }
 }
 
@@ -585,8 +611,16 @@ const COST_KEYWORDS = [
   'lainnya', 'lain-lain'
 ]
 
-function normalizeHeader(h) {
-  return String(h).trim().toLowerCase().replace(/[._\-/\\]/g, ' ')
+export function normalizeHeader(h) {
+  // Ubah semua pemisah simbol (_ - . / \) menjadi spasi, lalu collapse spasi ganda
+  // menjadi spasi tunggal agar header seperti "Gross_Product_Sales" cocok dengan
+  // alias kamus "gross product sales".
+  return String(h)
+    .trim()
+    .toLowerCase()
+    .replace(/[_\-.\/\\]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function scoreMatch(header, alias) {
@@ -1016,6 +1050,27 @@ export function calculateRecommendedPrice(totalModalUnit, feeRate, targetProfit)
   return Math.max(recommended, 0)
 }
 
+/**
+ * Kolom yang nilainya SUDAH merupakan total untuk seluruh qty pada satu baris pesanan
+ * (contoh: Total Harga Produk, Subtotal Produk, Total Pembayaran). Nilai di kolom ini
+ * JANGAN boleh dikalikan qty/Jumlah lagi — ambil nominal baris apa adanya.
+ * Hanya kolom harga SATUAN (Harga Produk / Harga Satuan) yang baru dikalikan qty untuk
+ * mendapatkan total baris.
+ */
+const ROW_TOTAL_KEYWORDS = [
+  'total harga produk', 'totalproduk', 'subtotal produk', 'subtotal', 'sub total',
+  'total pembayaran', 'total tagihan', 'total harga', 'total penjualan',
+  'total bayar', 'grand total', 'jumlah total', 'total pembeli', 'total harga jual', 'harga total',
+  // Alias bahasa Inggris TikTok Shop (kolom total baris, jangan dikalikan qty)
+  'gross product sales', 'total product sales', 'gross sales', 'total sales'
+]
+
+function isRowTotalPriceColumn(colName) {
+  if (!colName) return false
+  const h = normalizeHeader(colName)
+  return ROW_TOTAL_KEYWORDS.some(kw => h === kw || h.includes(kw) || kw.includes(h))
+}
+
 export function calculateAnalysis(rows, mapping, hppInputs = {}, marketplace = 'auto', targetProfit = DEFAULT_TARGET_PROFIT, packingCost = 0, adCost = 0) {
   const products = {}
   const claims = []
@@ -1122,8 +1177,48 @@ initShopeeDeductionColumns()
     if (mappedKey && row[mappedKey] !== undefined && row[mappedKey] !== '') {
       return toNumber(row[mappedKey])
     }
+    // Fallback pencarian nama header asli secara case-insensitive
+    // (mis. header Excel 'Jumlah' tetap ditemukan oleh alias 'jumlah';
+    // 'Total Harga Produk' tetap ditemukan oleh alias 'total harga produk')).
+    const rowKeyByLower = {}
+    for (const rk of Object.keys(row)) rowKeyByLower[String(rk).toLowerCase()] = rk
     for (const fb of fallbackKeys) {
-      if (row[fb] !== undefined && row[fb] !== '') return toNumber(row[fb])
+      const actualKey = row[fb] !== undefined ? fb : rowKeyByLower[String(fb).toLowerCase()]
+      if (actualKey && row[actualKey] !== undefined && row[actualKey] !== '') {
+        return toNumber(row[actualKey])
+      }
+    }
+    // Fallback: indir semua header baris terhadap kamus alias untuk kunci ini,
+    // agar nilai tetap terbaca meskipun pemetaan otomatis melewatkan kolom
+    // (mis. karena perbedaan pemisah simbol atau nama properti yang tidak persis).
+    const aliases = COLUMN_ALIASES[key] || []
+    const normAliases = aliases.map(a => normalizeHeader(a))
+    for (const h of Object.keys(row)) {
+      if (normAliases.includes(normalizeHeader(h))) {
+        return toNumber(row[h])
+      }
+    }
+    // Emergency fallback: baca langsung kolom TikTok Shop utama berdasarkan
+    // nama asli (termasuk variasi pemisah _ / spasi) agar Gross_Product_Sales
+    // dan Net_Settlement_Amount selalu terbaca walaupun smartMapHeaders gagal.
+    const emergencyCols = {
+      productPrice: ['Gross_Product_Sales', 'Gross Product Sales', 'gross_product_sales', 'gross product sales'],
+      settlementAmount: ['Net_Settlement_Amount', 'Net Settlement Amount', 'net_settlement_amount', 'net settlement amount']
+    }
+    if (emergencyCols[key]) {
+      // Cek exact key match terlebih dahulu
+      for (const ec of emergencyCols[key]) {
+        if (row[ec] !== undefined && row[ec] !== '') {
+          return toNumber(row[ec])
+        }
+      }
+      // Fallback: normalized header comparison untuk menangani variasi pemisah
+      const normEmergency = emergencyCols[key].map(e => normalizeHeader(e))
+      for (const h of Object.keys(row)) {
+        if (normEmergency.includes(normalizeHeader(h))) {
+          return toNumber(row[h])
+        }
+      }
     }
     return 0
   }
@@ -1132,8 +1227,13 @@ initShopeeDeductionColumns()
     if (mappedKey && row[mappedKey] !== undefined && row[mappedKey] !== '') {
       return String(row[mappedKey]).trim()
     }
+    const rowKeyByLower = {}
+    for (const rk of Object.keys(row)) rowKeyByLower[String(rk).toLowerCase()] = rk
     for (const fb of fallbackKeys) {
-      if (row[fb] !== undefined && row[fb] !== '') return String(row[fb]).trim()
+      const actualKey = row[fb] !== undefined ? fb : rowKeyByLower[String(fb).toLowerCase()]
+      if (actualKey && row[actualKey] !== undefined && row[actualKey] !== '') {
+        return String(row[actualKey]).trim()
+      }
     }
     return ''
   }
@@ -1190,8 +1290,12 @@ initShopeeDeductionColumns()
     // tetap terdeteksi sebagai pengembalian dana
     const refundAbs = isFinite(refund) ? Math.abs(refund) : 0
     const safeRefund = Math.max(refundAbs, extraRefund)
-    const productPrice = get(row, 'productPrice', ['Harga Asli Produk', 'product price', 'price', 'harga jual'])
-    const qty = get(row, 'quantity', ['Quantity', 'qty', 'jumlah']) || 1
+    // Prioritas ambil dari 'Total Harga Produk' / 'Subtotal Produk' (grossSales),
+    // lalu baru harga satuan ('Harga Produk' / 'Harga Jual' dst).
+    const productPrice = get(row, 'productPrice', ['Total Harga Produk', 'Subtotal Produk', 'Harga Asli Produk', 'Harga Produk', 'Harga Jual Produk', 'Harga Jual', 'product price', 'price', 'harga jual'])
+    // 'jumlah' (exact) selain 'jumlah produk' dan 'qty' — pencarian case-insensitive
+    // di atas memastikan kolom 'Jumlah' dari Excel selalu terbaca.
+    const qty = get(row, 'quantity', ['Quantity', 'qty', 'jumlah', 'jumlah produk', 'qty terjual', 'jumlah pcs']) || 1
     const estShipping = get(row, 'shippingEstimate', ['Estimasi Ongkir', 'estimated shipping'])
     const buyerShipping = get(row, 'buyerShipping', ['Ongkir Dibayar Pembeli', 'buyer shipping'])
     const resi = getStr(row, 'resi', ['Resi', 'no resi', 'tracking number'])
@@ -1241,45 +1345,59 @@ initShopeeDeductionColumns()
       + safeOrderProcessFee + safePromoServiceFee + safeAmsCommission
       + safeShippingSavingProgram + safePremium + safeTax + safeAdditionalServiceFee
 
-    // Akumulasi pecahan potongan per kolom asli untuk Langkah 1
-    // Gunakan Math.abs agar nilai negatif (-(12.388), -12388, (12.388))
-    // tetap terakumulasi sebagai potongan positif di tabel Langkah 1
-    // Cari nama kolom asli dari Excel untuk setiap kunci potongan
-    deductionColumns.forEach((dc) => {
-      const actualCol = findActualDeductionColumn(dc.key, COLUMN_ALIASES[dc.key] || [])
-      if (!actualCol) return
-      const val = toNumber(row[actualCol] || 0)
-      if (val !== 0) {
-        if (!deductionBreakdownMap[actualCol]) {
-          deductionBreakdownMap[actualCol] = { label: actualCol, amount: 0 }
-        }
-        deductionBreakdownMap[actualCol].amount += Math.abs(val)
-      }
-    })
-
-    // Akumulasi kolom potongan tambahan dari deteksi otomatis (cost_*)
-    deductionCostKeys.forEach((dc) => {
-      const val = get(row, dc.key)
-      if (val !== 0) {
-        if (!deductionBreakdownMap[dc.label]) {
-          deductionBreakdownMap[dc.label] = { label: dc.label, amount: 0 }
-        }
-        deductionBreakdownMap[dc.label].amount += Math.abs(val)
-      }
-    })
-
-    // Selisih Ongkir: hanya masukkan ke deductionBreakdown jika Estimasi Ongkir > Ongkir Dibayar Pembeli
-    const autoShippingDiff = safeEstShipping - safeBuyerShipping
-    if (autoShippingDiff > 5000) {
-      if (!deductionBreakdownMap['shippingDifference']) {
-        deductionBreakdownMap['shippingDifference'] = { label: 'Selisih Ongkir', amount: 0 }
-      }
-      deductionBreakdownMap['shippingDifference'].amount += autoShippingDiff
-    }
-
-    const netSettlement = safeSettlement - totalDeductions - safeRefund
+    // Total Penghasilan (settlementAmount) sudah merupakan nilai bersih (net) setelah
+    // semua potongan marketplace. Jangan kurangi totalDeductions lagi — hanya kurangi refund.
+    const netSettlement = safeSettlement - safeRefund
     const units = Math.max(safeQty, 1)
-    const pricePerUnit = safeProductPrice > 0 ? safeProductPrice : safeSettlement / units
+    // --- Tentukan apakah harga produk yang terbaca adalah TOTAL BARIS (sudah untuk seluruh qty)
+    // atau HARGA SATUAN (per pcs). Kolom total baris (Total Harga Produk, Subtotal Produk,
+    // Total Pembayaran, dll.) SUDAH merupakan jumlah untuk seluruh qty pada baris tersebut —
+    // JANGAN dikalikan qty lagi. Hanya kalikan qty apabila kolomnya adalah harga satuan
+    // (Harga Produk / Harga Satuan) dan file TIDAK memiliki kolom total baris.
+    //
+    // Prioritaskan kolom total jika tersedia di baris, sehingga meskipun mapping.productPrice
+    // menunjuk ke kolom satuan namun ada kolom total terpisah, nilai totallah yang digunakan.
+    const rowKeyByLower = {}
+    for (const rk of Object.keys(row)) rowKeyByLower[normalizeHeader(rk)] = rk
+    const rowGet = (name) => {
+      const rk = rowKeyByLower[String(name).toLowerCase()]
+      return rk !== undefined ? row[rk] : undefined
+    }
+    const totalPriceFallbackCols = [
+      'Total Harga Produk', 'Subtotal Produk', 'Total Pembayaran', 'Total Tagihan',
+      'Total Harga', 'Total Penjualan', 'Total Bayar', 'Grand Total', 'Jumlah Total',
+      'Subtotal', 'Total Produk', 'Total Harga Jual', 'Harga Total',
+      // Alias bahasa Inggris TikTok Shop (kolom total baris)
+      'Gross Product Sales', 'Total Product Sales', 'Gross Sales', 'Total Sales'
+    ]
+    let priceSourceCol = null
+    for (const c of totalPriceFallbackCols) {
+      if (rowGet(c) !== undefined && rowGet(c) !== '') { priceSourceCol = c; break }
+    }
+    // Jika tidak ada kolom total terdeteksi, gunakan kolom yang dipetakan ke productPrice
+    if (!priceSourceCol && mapping.productPrice &&
+        rowGet(mapping.productPrice) !== undefined && rowGet(mapping.productPrice) !== '') {
+      priceSourceCol = mapping.productPrice
+    }
+    const isTotalPriceCol = priceSourceCol ? isRowTotalPriceColumn(priceSourceCol) : false
+    const effectiveProductPrice = priceSourceCol ? toNumber(rowGet(priceSourceCol) || 0) : safeProductPrice
+    const safeEffectiveProductPrice = isFinite(effectiveProductPrice) ? effectiveProductPrice : 0
+
+    let rowGrossRevenue
+    let pricePerUnit
+    if (isTotalPriceCol && safeEffectiveProductPrice > 0) {
+      // Kolom total baris: ambil nominal baris langsung (tidak dikalikan qty)
+      rowGrossRevenue = safeEffectiveProductPrice
+      pricePerUnit = safeQty > 0 ? safeEffectiveProductPrice / safeQty : safeEffectiveProductPrice
+    } else if (safeEffectiveProductPrice > 0) {
+      // Kolom harga satuan (dan tidak ada kolom total baris): kalikan dengan qty
+      rowGrossRevenue = safeEffectiveProductPrice * safeQty
+      pricePerUnit = safeEffectiveProductPrice
+    } else {
+      // Fallback ke settlement jika tidak ada kolom harga produk
+      rowGrossRevenue = (safeSettlement / units) * safeQty
+      pricePerUnit = safeSettlement / units
+    }
 
     // --- Deteksi baris "Total / Ringkasan / Grand Total" di bawah tabel ---
     // Hanya buang baris yang BENAR-BENAR ringkasan (tidak punya No. Pesanan atau
@@ -1325,13 +1443,16 @@ initShopeeDeductionColumns()
 
     // Kumpulkan detail pesanan retur untuk transparansi biaya hangus
     // Deteksi berdasarkan nominal refund > 0 ATAU status pesanan mengandung kata retur/pengembalian/batal
+    // Tracking kolom yang sudah diproses agar tidak ada kolom yang dihitung 2x oleh dua deduction key berbeda
+    const usedDeductionCols = new Set()
     if (safeRefund > 0 || isReturnStatus) {
       // Biaya hangus = semua potongan operasional pada baris retur (kecuali refund itu sendiri)
       let lostFeeAmount = 0
       deductionColumns.forEach((dc) => {
         if (dc.key === 'refund') return
         const actualCol = findActualDeductionColumn(dc.key, COLUMN_ALIASES[dc.key] || [])
-        if (!actualCol) return
+        if (!actualCol || usedDeductionCols.has(actualCol)) return
+        usedDeductionCols.add(actualCol)
         const val = toNumber(row[actualCol] || 0)
         if (val !== 0) lostFeeAmount += Math.abs(val)
       })
@@ -1349,6 +1470,43 @@ initShopeeDeductionColumns()
       continue // Jangan masukkan baris retur ke tabel produk sukses — hanya ke returnedOrders
     } else {
       totalUnitsSuccess += safeQty
+    }
+
+    // Akumulasi pecahan potongan per kolom asli untuk Langkah 1
+    // Hanya untuk baris produk sukses (bukan baris retur, total, atau non-produk)
+    // Gunakan Math.abs agar nilai negatif tetap terakumulasi sebagai potongan positif
+    // Hindari double-counting: skip kolom yang sudah diproses oleh deduction key lain
+    deductionColumns.forEach((dc) => {
+      const actualCol = findActualDeductionColumn(dc.key, COLUMN_ALIASES[dc.key] || [])
+      if (!actualCol || usedDeductionCols.has(actualCol)) return
+      usedDeductionCols.add(actualCol)
+      const val = toNumber(row[actualCol] || 0)
+      if (val !== 0) {
+        if (!deductionBreakdownMap[actualCol]) {
+          deductionBreakdownMap[actualCol] = { label: actualCol, amount: 0 }
+        }
+        deductionBreakdownMap[actualCol].amount += Math.abs(val)
+      }
+    })
+
+    // Akumulasi kolom potongan tambahan dari deteksi otomatis (cost_*)
+    deductionCostKeys.forEach((dc) => {
+      const val = get(row, dc.key)
+      if (val !== 0) {
+        if (!deductionBreakdownMap[dc.label]) {
+          deductionBreakdownMap[dc.label] = { label: dc.label, amount: 0 }
+        }
+        deductionBreakdownMap[dc.label].amount += Math.abs(val)
+      }
+    })
+
+    // Selisih Ongkir: hanya masukkan ke deductionBreakdown jika Estimasi Ongkir > Ongkir Dibayar Pembeli
+    const autoShippingDiff = safeEstShipping - safeBuyerShipping
+    if (autoShippingDiff > 5000) {
+      if (!deductionBreakdownMap['shippingDifference']) {
+        deductionBreakdownMap['shippingDifference'] = { label: 'Selisih Ongkir', amount: 0 }
+      }
+      deductionBreakdownMap['shippingDifference'].amount += autoShippingDiff
     }
 
     if (!products[productKey]) {
@@ -1383,7 +1541,7 @@ initShopeeDeductionColumns()
     p.orders += 1
     if (orderId) p.uniqueOrders.add(orderId)
     p.unitsSold += safeQty
-    p.grossRevenue += pricePerUnit * safeQty
+    p.grossRevenue += rowGrossRevenue
     if (safeRefund > 0) {
       p.unitsSoldReturned += safeQty
     } else {
@@ -1562,6 +1720,46 @@ initShopeeDeductionColumns()
 
   // Kumpulkan semua nama kolom asli dari mapping untuk ditampilkan di Langkah 1
   const detectedColumns = Object.values(mapping).filter(Boolean)
+
+  // === SAFETY NET: jika total masih 0 padahal ada baris data, scan langsung ===
+  // Kolom asli Excel untuk memastikan Gross_Product_Sales dan Net_Settlement_Amount
+  // selalu terbaca walaupun semua path pemadat otomatis gagal.
+  if (rows.length > 0) {
+    const grossCols = ['Gross_Product_Sales', 'Gross Product Sales', 'gross_product_sales', 'gross product sales', 'Total Harga Produk', 'Subtotal Produk', 'Total Penjualan']
+    const netCols = ['Net_Settlement_Amount', 'Net Settlement Amount', 'net_settlement_amount', 'net settlement amount', 'Total Penghasilan', 'Total Pendapatan']
+    const normGrossCols = grossCols.map(g => normalizeHeader(g))
+    const normNetCols = netCols.map(n => normalizeHeader(n))
+    let emergencyGross = 0
+    let emergencyNet = 0
+    for (const row of rows) {
+      // Cari kolom gross per baris (normalized match)
+      for (const h of Object.keys(row)) {
+        const nh = normalizeHeader(h)
+        if (normGrossCols.includes(nh) && row[h] !== undefined && row[h] !== '') {
+          emergencyGross += toNumber(row[h])
+          break
+        }
+      }
+      // Cari kolom net per baris (normalized match)
+      for (const h of Object.keys(row)) {
+        const nh = normalizeHeader(h)
+        if (normNetCols.includes(nh) && row[h] !== undefined && row[h] !== '') {
+          emergencyNet += toNumber(row[h])
+          break
+        }
+      }
+    }
+    // Override summary jika safety net menemukan nilai yang lebih tinggi
+    if (emergencyGross > summary.totalGross) {
+      summary.totalGross = emergencyGross
+      summary.grossRevenue = emergencyGross
+    }
+    if (emergencyNet > summary.settlementAmount) {
+      summary.settlementAmount = emergencyNet
+    }
+    // Recalculate totalGrossDeduction
+    summary.totalGrossDeduction = summary.totalGross - summary.settlementAmount
+  }
 
   return { summary, products: productList, lossProducts, fakeStarProducts, claims, returnedOrders, hasOrderIdColumn, detectedColumns }
 }
