@@ -1,11 +1,13 @@
+import * as XLSX from 'xlsx'
 import {
   smartMapHeaders,
   calculateAnalysis,
-  parseExcelFile,
   parseHppFile,
   generateMassUpdateExcel,
   formatRupiah,
   formatPercent,
+  scanAllSheets,
+  validateExcelFile,
 } from '../../lib/analysis'
 
 async function mapHeadersWithGemini(rawHeaders, marketplace) {
@@ -75,6 +77,49 @@ Respond with JSON only.
   }
 }
 
+/**
+ * Konversi berbagai representasi buffer (dari req.json()) menjadi Uint8Array
+ * agar dapat dibaca oleh XLSX di lingkungan server (Node.js).
+ */
+function toUint8Array(buffer) {
+  if (buffer === null || buffer === undefined) {
+    throw new Error('Buffer file kosong.')
+  }
+  // Node.js Buffer yang diserialisasi ke JSON: { type: 'Buffer', data: [...] }
+  if (buffer && buffer.type === 'Buffer' && Array.isArray(buffer.data)) {
+    return new Uint8Array(buffer.data)
+  }
+  if (buffer instanceof Uint8Array) return buffer
+  if (Array.isArray(buffer)) return new Uint8Array(buffer)
+  if (Buffer.isBuffer(buffer)) return new Uint8Array(buffer)
+  if (typeof buffer === 'string') {
+    // Asumsikan string merupakan base64
+    const bin = Buffer.from(buffer, 'base64')
+    return new Uint8Array(bin.buffer, bin.byteOffset, bin.byteLength)
+  }
+  throw new Error('Format buffer file tidak valid untuk dibaca di server.')
+}
+
+/**
+ * Parser Excel untuk API Route (Node.js). Tidak menggunakan FileReader (khusus
+ * browser), melainkan membaca buffer langsung melalui XLSX.read, lalu mengekstrak
+ * semua record + header dari seluruh sheet via scanAllSheets (dari lib/analysis).
+ */
+function parseExcelBuffer(buffer, fileName) {
+  const validation = validateExcelFile({ name: fileName || 'file.xlsx' })
+  if (!validation.valid) throw new Error(validation.errorMessage)
+  const data = toUint8Array(buffer)
+  const workbook = XLSX.read(data, { type: 'array' })
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    throw new Error('File Excel tidak mengandung sheet/tab apa pun.')
+  }
+  const { allRecords, allHeaders } = scanAllSheets(workbook)
+  if (allRecords.length === 0) {
+    throw new Error('Tidak ditemukan data transaksi pada sheet mana pun dalam file ini.')
+  }
+  return { records: allRecords, headers: allHeaders }
+}
+
 export async function POST(req) {
   try {
     const { data, useGemini, marketplace } = await req.json()
@@ -87,11 +132,16 @@ export async function POST(req) {
 
     // Check if payload is a binary file upload (has buffer + name)
     if (data.buffer && data.name) {
-      const { records, headers } = await parseExcelFile(data)
+      const { records, headers } = parseExcelBuffer(data.buffer, data.name)
       const mapping = useGemini && process.env.GEMINI_API_KEY
         ? await mapHeadersWithGemini(headers, marketplace)
         : smartMapHeaders(headers, marketplace)
       const result = calculateAnalysis(records, mapping, {}, marketplace)
+      // Zero-Safety: tandai jika ada data namun total omzet/dana cair nol
+      if (records.length > 0 &&
+          (result.summary.totalGross <= 0 || result.summary.settlementAmount <= 0)) {
+        result.zeroSafetyTriggered = true
+      }
       return new Response(JSON.stringify(result), {
         status: 200, headers: { 'Content-Type': 'application/json' },
       })
@@ -107,6 +157,11 @@ export async function POST(req) {
         Object.assign(mapping, fallback.mapping)
       }
       const result = calculateAnalysis(data.rows, mapping, {}, marketplace)
+      // Zero-Safety: tandai jika ada data namun total omzet/dana cair nol
+      if (data.rows.length > 0 &&
+          (result.summary.totalGross <= 0 || result.summary.settlementAmount <= 0)) {
+        result.zeroSafetyTriggered = true
+      }
       result.analysis = {
         type: 'gemini_powered',
         message: 'Analisis menggunakan Gemini AI untuk pemetaan kolom',
@@ -120,6 +175,11 @@ export async function POST(req) {
     const records = data.records || []
     const mapping = data.mapping || {}
     const result = calculateAnalysis(records, mapping, {}, marketplace)
+    // Zero-Safety: tandai jika ada data namun total omzet/dana cair nol
+    if (records.length > 0 &&
+        (result.summary.totalGross <= 0 || result.summary.settlementAmount <= 0)) {
+      result.zeroSafetyTriggered = true
+    }
     return new Response(JSON.stringify(result), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     })

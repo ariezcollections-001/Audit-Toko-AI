@@ -31,6 +31,23 @@ export default function Home() {
   const [unlocked, setUnlocked] = useState(false)
   const [paid, setPaid] = useState(false)
 
+  /**
+   * Normalisasi objek hasil calculateAnalysis agar struktur properti 100% sama
+   * persis dengan objek yang dimuat dari Riwayat Audit (handleLoadHistory).
+   * Dipakai di semua tempat yang memanggil setAnalysisResult agar upload langsung
+   * tidak menampilkan Rp 0 detik pertama.
+   */
+  const normalizeAnalysisResult = (result) => ({
+    summary: result.summary,
+    products: result.products,
+    lossProducts: result.lossProducts || [],
+    fakeStarProducts: result.fakeStarProducts || [],
+    claims: result.claims || [],
+    returnedOrders: result.returnedOrders || [],
+    detectedColumns: result.detectedColumns || [],
+    hasOrderIdColumn: result.hasOrderIdColumn ?? true,
+  })
+
   // Upload loading state (dikelola di page.js agar popup tahan selama transisi view)
   const [showUploadLoading, setShowUploadLoading] = useState(false)
   const [uploadStartTime, setUploadStartTime] = useState(null)
@@ -77,10 +94,20 @@ export default function Home() {
       setUploadStartTime(Date.now())
 
       try {
-        setFileData({ fileName, headers, records })
+        setFileData({ fileName, headers, records, mapping })
         setDetectedFormat(marketplace === 'auto' ? 'Terdeteksi Otomatis' : marketplace)
         const result = calculateAnalysis(records, mapping, hppInputs, marketplace, targetProfit, packingCost, adCost)
-        setAnalysisResult(result)
+
+        // === Zero-Safety Trigger di page.js (pelindung terakhir sebelum ResultsSection) ===
+        // Jika ada baris data namun total omzet kotor atau total dana cair <= 0,
+        // JANGAN lanjut ke halaman hasil Rp 0. Lempar sinyal agar UploadSection
+        // menampilkan kotak kuning Fallback Manual Mapping.
+        if (records.length > 0 &&
+            (result.summary.totalGross <= 0 || result.summary.settlementAmount <= 0)) {
+          throw new Error('ZERO_SAFETY_TRIGGERED')
+        }
+
+        setAnalysisResult(normalizeAnalysisResult(result))
 
         // Simpan ke riwayat otomatis
         const totalSettlement = result.summary?.settlementAmount || 0
@@ -141,6 +168,7 @@ export default function Home() {
       fakeStarProducts: item.fakeStarProducts || [],
       claims: item.claims || [],
       returnedOrders: item.returnedOrders || [],
+      detectedColumns: item.detectedColumns || [],
       hasOrderIdColumn: item.hasOrderIdColumn ?? true,
     })
     setFileData({ fileName: item.fileName })
@@ -218,7 +246,7 @@ export default function Home() {
 
       // Re-run analisis dengan HPP baru jika sudah ada data penjualan
       if (fileData?.records && fileData?.headers) {
-        const mapping = smartMapHeaders(fileData.headers, marketplace)
+        const mapping = fileData.mapping || smartMapHeaders(fileData.headers, marketplace)
         const result = calculateAnalysis(
           fileData.records,
           mapping,
@@ -228,7 +256,7 @@ export default function Home() {
           packingCost,
           adCost
         )
-        setAnalysisResult(result)
+        setAnalysisResult(normalizeAnalysisResult(result))
       }
 
       if (activeHistoryId) {
@@ -253,7 +281,7 @@ export default function Home() {
 
       // Re-run analisis dengan HPP baru jika sudah ada data penjualan
       if (fileData?.records && fileData?.headers) {
-        const mapping = smartMapHeaders(fileData.headers, marketplace)
+        const mapping = fileData.mapping || smartMapHeaders(fileData.headers, marketplace)
         const result = calculateAnalysis(
           fileData.records,
           mapping,
@@ -263,7 +291,7 @@ export default function Home() {
           packingCost,
           adCost
         )
-        setAnalysisResult(result)
+        setAnalysisResult(normalizeAnalysisResult(result))
       }
     },
     [activeHistoryId, handleUpdateHistory, fileData, marketplace, targetProfit, packingCost, hppInputs]
@@ -272,7 +300,7 @@ export default function Home() {
   // Re-run analisis saat HPP, target profit, atau packing cost berubah
   useEffect(() => {
     if (!fileData?.records || !fileData?.headers) return
-    const mapping = smartMapHeaders(fileData.headers, marketplace)
+    const mapping = fileData.mapping || smartMapHeaders(fileData.headers, marketplace)
     const result = calculateAnalysis(
       fileData.records,
       mapping,
@@ -282,7 +310,7 @@ export default function Home() {
       packingCost,
       adCost
     )
-    setAnalysisResult(result)
+    setAnalysisResult(normalizeAnalysisResult(result))
   }, [hppInputs, targetProfit, packingCost, marketplace, fileData])
 
   // Sembunyikan popup loading setelah view berubah ke 'results'

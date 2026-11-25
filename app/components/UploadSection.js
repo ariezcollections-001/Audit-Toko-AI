@@ -5,6 +5,8 @@ import { FileSpreadsheet, AlertCircle, RefreshCw } from 'lucide-react'
 import {
   parseExcelFile,
   smartMapHeaders,
+  normalizeHeader,
+  calculateAnalysis,
   parseHppFile,
   validateExcelFile,
   NON_EXCEL_WARNING_MESSAGE,
@@ -117,13 +119,49 @@ export default function UploadSection({
     setFileName(file.name)
     setMappingInfo(null)
 
+    // Hoist ke luar try agar catch block dapat mengaksesnya saat zero-safety
+    // dari page.js memicu manual mapping.
+    let headers, records
+
     try {
-      const { headers, records } = await parseExcelFile(file)
+      const parsed = await parseExcelFile(file)
+      headers = parsed.headers
+      records = parsed.records
       const { mapping } = smartMapHeaders(headers, marketplace)
 
-      // Deteksi kolom yang belum ter-alias (tidak muncul di nilai mapping)
-      const mappedColumnNames = new Set(Object.values(mapping))
-      const unmappedHeaders = headers.filter((h) => !mappedColumnNames.has(h))
+      // === Zero-Safety Trigger: jangan biarkan halaman hasil Rp 0 tercapai ===
+      // Jika ada baris data namun total omzet kotor atau total dana cair <= 0,
+      // BLOKIR perpindahan ke ResultsSection dan WAJIB tampilkan kotak kuning
+      // Fallback Manual Mapping agar pengguna dapat memilih ulang kolom
+      // Harga Jual / Omzet Kotor dan Total Penghasilan / Dana Cair.
+      let totalGross = 0
+      let settlementAmount = 0
+      if (records.length > 0) {
+        const { summary } = calculateAnalysis(records, mapping, {}, marketplace)
+        totalGross = summary.totalGross || 0
+        settlementAmount = summary.settlementAmount || 0
+      }
+      if (records.length > 0 && (totalGross <= 0 || settlementAmount <= 0)) {
+        setPendingRecords(records)
+        setPendingHeaders(headers)
+        // Semua header tersedia agar pengguna dapat memilih ulang semua kolom
+        setUnmappedHeaders(headers)
+        setManualMapping({})
+        setShowManualMapping(true)
+        setError(null)
+        return
+      }
+
+      // Deteksi kolom yang belum ter-alias (tidak muncul di nilai mapping).
+      // Bandingkan dengan header yang telah dinormalisasi agar pemisah simbol
+      // (_ - . / spasi ganda) tidak menyebabkan kolom yang sebenarnya cocok
+      // dianggap "belum dikenal".
+      const mappedColumnNames = new Set(
+        Object.values(mapping).map((h) => normalizeHeader(h))
+      )
+      const unmappedHeaders = headers.filter(
+        (h) => !mappedColumnNames.has(normalizeHeader(h))
+      )
 
       if (unmappedHeaders.length > 0) {
         // Tampilkan UI manual mapping untuk kolom yang belum dikenali
@@ -139,6 +177,18 @@ export default function UploadSection({
       setMappingInfo({ headers, mapping, mappedCount: Object.keys(mapping).length })
       await onFileProcessed(records, mapping, headers, file.name)
     } catch (err) {
+      // Jika page.js melempar sinyal zero-safety (total omzet/dana cair nol),
+      // tampilkan kotak kuning Fallback Manual Mapping alih-alih dialog error.
+      if (err.message === 'ZERO_SAFETY_TRIGGERED' && records && records.length > 0) {
+        setPendingRecords(records)
+        setPendingHeaders(headers)
+        // Semua header tersedia agar pengguna dapat memilih ulang semua kolom
+        setUnmappedHeaders(headers)
+        setManualMapping({})
+        setShowManualMapping(true)
+        setError(null)
+        return
+      }
       setError(err.message || NON_EXCEL_WARNING_MESSAGE)
     }
   }
