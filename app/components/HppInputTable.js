@@ -82,7 +82,7 @@ export default function HppInputTable({
                 onClick={() => setIsZoomed(false)}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
               >
-                <Minimize2 className="w-3 h-3" /> Selesai &amp; Perkecil Layar
+                <Minimize2 className="w-3 h-3" /> Perkecil Layar
               </button>
             </div>
           </div>

@@ -318,7 +318,7 @@ export default function ProfitLeakTable({
                         <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Laba/Rugi Lama</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">
                     Harga Jual Baru
-                    <p className="text-[10px] text-amber-500 mt-0.5">Sesuai target profit terpilih</p>
+                    <p className="text-[9px] text-amber-500 mt-0.5">Sesuai target profit yang anda DIpilih</p>
                   </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Untung Baru &amp; Status</th>
                       </tr>
@@ -331,40 +331,7 @@ export default function ProfitLeakTable({
               </>
             )
           })()}
-          {/* === SELISIH ONGKIR & BIAYA RETUR — disembunyikan saat layar diperbesar === */}
-          {!zoomed && claims.length > 0 && (
-            <div className="shrink-0">
-              <div className="flex items-center gap-2 mb-3">
-                <Truck className="w-5 h-5 text-blue-600" />
-                <h4 className="font-bold text-blue-700">🔵 Selisih Ongkir & Biaya Retur</h4>
-              </div>
-              <p className="text-sm text-gray-600 mb-3">
-                Pesanan dengan selisih berat/ongkir tidak wajar atau retur yang memotong biaya admin.
-              </p>
-              <table className="w-full text-sm">
-                <thead className="bg-blue-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">No. Pesanan</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">Produk</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">Resi</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-blue-700 uppercase">Selisih Ongkir</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-100">
-                  {claims.map((c) => (
-                    <tr key={c.orderId}>
-                      <td className="px-4 py-3 text-gray-900 font-medium">{c.orderId}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.product}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.resi}</td>
-                      <td className="px-4 py-3 text-right text-blue-600 font-semibold">
-                        {formatRupiah(c.difference)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ export default function Header({
   view = 'home',
   historyCount = 0,
   onHistoryClick,
+  onOpenHistoryModal,
   onCaraKerjaClick,
   onHargaClick,
   onBackToHome,
@@ -53,15 +54,13 @@ export default function Header({
                   >
                     Harga
                   </button>
-                  {historyCount > 0 && (
-                    <button
-                      onClick={onHistoryClick}
-                      className="flex items-center gap-1.5 text-slate-600 font-medium transition-colors hover:text-slate-900"
-                    >
-                      <Clock className="w-4 h-4" />
-                      Riwayat <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={onOpenHistoryModal}
+                    className="flex items-center gap-1.5 text-slate-600 font-medium transition-colors hover:text-slate-900"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Riwayat <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
+                  </button>
                 </>
               ) : (
                 <>
@@ -83,6 +82,13 @@ export default function Header({
                     className="text-slate-600 transition-colors hover:text-slate-900"
                   >
                     Harga
+                  </button>
+                  <button
+                    onClick={onOpenHistoryModal}
+                    className="flex items-center gap-1.5 text-slate-600 font-medium transition-colors hover:text-slate-900"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Riwayat <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
                   </button>
                 </>
               )}
@@ -124,15 +130,13 @@ export default function Header({
                 >
                   Harga
                 </button>
-                {historyCount > 0 && (
-                  <button
-                    onClick={onHistoryClick}
-                    className="block w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors"
-                  >
-                    <Clock className="w-4 h-4" />
-                    Riwayat <span className="ml-auto text-xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full">+{historyCount}</span>
-                  </button>
-                )}
+                <button
+                  onClick={onOpenHistoryModal}
+                  className="block w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                >
+                  <Clock className="w-4 h-4" />
+                  Riwayat <span className="ml-auto text-xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full">+{historyCount}</span>
+                </button>
               </>
             ) : (
               <>
@@ -154,6 +158,13 @@ export default function Header({
                   className="block px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                 >
                   Harga
+                </button>
+                <button
+                  onClick={onOpenHistoryModal}
+                  className="block w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                >
+                  <Clock className="w-4 h-4" />
+                  Riwayat <span className="ml-auto text-xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full">+{historyCount}</span>
                 </button>
               </>
             )}

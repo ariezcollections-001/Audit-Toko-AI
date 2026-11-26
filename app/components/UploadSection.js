@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { FileSpreadsheet, AlertCircle, RefreshCw } from 'lucide-react'
 import {
   parseExcelFile,
@@ -30,6 +30,14 @@ export default function UploadSection({
   const [pendingHeaders, setPendingHeaders] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef(null)
+  const yellowBoxRef = useRef(null)
+
+  // Auto-scroll ke kotak kuning "Tentukan Kolom yang Belum Dikenali" saat muncul
+  useEffect(() => {
+    if (showManualMapping && yellowBoxRef.current) {
+      yellowBoxRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [showManualMapping])
 
   const handleRetryUpload = () => {
     setError(null)
@@ -50,7 +58,7 @@ export default function UploadSection({
   const handleConfirmManualMapping = async () => {
     if (!pendingRecords || !pendingHeaders) return
     // Gabungkan mapping otomatis dengan mapping manual
-    const { mapping: autoMapping, requiredColumnConfidence } = smartMapHeaders(pendingHeaders, marketplace)
+    const { mapping: autoMapping } = smartMapHeaders(pendingHeaders, marketplace)
     const mergedMapping = { ...autoMapping }
 
     // Masukkan mapping manual ke dalam mergedMapping
@@ -62,18 +70,14 @@ export default function UploadSection({
     })
 
     // Verifikasi kolom wajib sudah terpilih setelah pemetaan manual.
-    // Jika productPrice atau settlementAmount belum ada di mergedMapping,
-    // atau confidence-nya di bawah 80, jangan biarkan melanjutkan—
-    // paksa pengguna memilih kolom yang benar di UI manual mapping.
+    // Cek KEADAAN (existensi) kolom wajib di mergedMapping, bukan confidence
+    // dari auto-mapping yang mungkin rendah untuk kolom marketplace asing.
     const missingRequired = []
     if (!mergedMapping.productPrice) missingRequired.push('Harga Jual / Omzet Kotor (productPrice)')
     if (!mergedMapping.settlementAmount) missingRequired.push('Total Dana Bersih Cair (settlementAmount)')
-    const lowConfidence =
-      (requiredColumnConfidence.productPrice !== undefined && requiredColumnConfidence.productPrice < 80) ||
-      (requiredColumnConfidence.settlementAmount !== undefined && requiredColumnConfidence.settlementAmount < 80)
 
-    if (missingRequired.length > 0 || lowConfidence) {
-      setError(`Kolom wajib belum terpilih dengan benar: ${missingRequired.join(', ')}. Silakan pilih ulang di kolom di bawah ini.`)
+    if (missingRequired.length > 0) {
+      setError(`Kolom wajib belum dipilih: ${missingRequired.join(', ')}. Silakan pilih di dropdown di atas.`)
       return
     }
 
@@ -87,23 +91,12 @@ export default function UploadSection({
     setManualMapping({})
     setPendingRecords(null)
     setPendingHeaders(null)
-    await onFileProcessed(pendingRecords, mergedMapping, pendingHeaders, fileName || 'file', requiredColumnConfidence)
+    await onFileProcessed(pendingRecords, mergedMapping, pendingHeaders, fileName || 'file', {})
   }
 
   const handleSkipManualMapping = async () => {
     if (!pendingRecords || !pendingHeaders) return
-    const { mapping: autoMapping, requiredColumnConfidence } = smartMapHeaders(pendingHeaders, marketplace)
-
-    // Jangan biarkan melewati pemetaan manual jika kolom wajib confidence < 80.
-    // Ini mencegah hasil Rp 0 atau angka salah dari nama kolom asing marketplace.
-    const lowConfidence =
-      (requiredColumnConfidence.productPrice !== undefined && requiredColumnConfidence.productPrice < 80) ||
-      (requiredColumnConfidence.settlementAmount !== undefined && requiredColumnConfidence.settlementAmount < 80)
-
-    if (lowConfidence) {
-      setError('Nama kolom Omzet Kotor atau Dana Bersih Cair tidak dikenali dengan cukup pasti. Silakan pilih kolom yang sesuai di bawah ini sebelum melanjutkan.')
-      return
-    }
+    const { mapping: autoMapping } = smartMapHeaders(pendingHeaders, marketplace)
 
     setMappingInfo({
       headers: pendingHeaders,
@@ -115,7 +108,7 @@ export default function UploadSection({
     setManualMapping({})
     setPendingRecords(null)
     setPendingHeaders(null)
-    await onFileProcessed(pendingRecords, autoMapping, pendingHeaders, fileName || 'file', requiredColumnConfidence)
+    await onFileProcessed(pendingRecords, autoMapping, pendingHeaders, fileName || 'file', {})
   }
 
   const handleFile = async (e) => {
@@ -195,26 +188,14 @@ export default function UploadSection({
       }
 
       // Deteksi kolom yang belum ter-alias (tidak muncul di nilai mapping).
-      // Bandingkan dengan header yang telah dinormalisasi agar pemisah simbol
-      // (_ - . / spasi ganda) tidak menyebabkan kolom yang sebenarnya cocok
-      // dianggap "belum dikenal".
+      // Kolom non-utama yang belum dikenali diabaikan — kotak kuning HANYA muncul
+      // jika kolom wajib (Omzet Kotor / Dana Bersih Cair) confidence < 80 atau nilainya <= 0.
       const mappedColumnNames = new Set(
         Object.values(mapping).map((h) => normalizeHeader(h))
       )
       const unmappedHeaders = headers.filter(
         (h) => !mappedColumnNames.has(normalizeHeader(h))
       )
-
-      if (unmappedHeaders.length > 0) {
-        // Tampilkan UI manual mapping untuk kolom yang belum dikenali
-        setPendingRecords(records)
-        setPendingHeaders(headers)
-        setUnmappedHeaders(unmappedHeaders)
-        setManualMapping({})
-        setShowManualMapping(true)
-        setError(null)
-        return
-      }
 
       setMappingInfo({ headers, mapping, mappedCount: Object.keys(mapping).length })
       await onFileProcessed(records, mapping, headers, file.name, requiredColumnConfidence)
@@ -355,7 +336,7 @@ export default function UploadSection({
 
             {/* Fallback Manual Mapping — tampilkan saat ada kolom yang belum terdeteksi */}
             {showManualMapping && (
-              <div className="mt-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm">
+              <div ref={yellowBoxRef} className="mt-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm">
                 <div className="flex items-start gap-3 mb-4">
                   <span className="w-5 h-5 text-amber-600 flex-shrink-0">⚙️</span>
                   <div>
@@ -423,7 +404,7 @@ export default function UploadSection({
                     Unggah laporan penjualan Anda secara gratis. Cocokkan terlebih dahulu angka Total Omzet,
                     Potongan Biaya, dan Dana Bersih Cair dengan mutasi saldo toko Anda. Anda hanya perlu
                     membayar <span className="font-semibold">Rp 15.000</span> jika data awal terbukti akurat
-                    dan Anda ingin membuka rincian harga jual baru anti-rugi serta file Excel Mass Update.
+                    dan Anda ingin membuka rincian harga jual baru anti-rugi serta download file Excel yg sudah Update harga sesuai target profit yg anda inginkan.
                   </p>
                 </div>
               </div>

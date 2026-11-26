@@ -14,7 +14,9 @@ const COLUMN_ALIASES = {
     'nomor invoice', 'no invoice', 'invoice number', 'invoice no',
     'order reference', 'referensi pesanan', 'nomor pesanan',
     // Alias Bukalapak (No. Pesanan / Tagihan)
-    'id tagihan', 'nomor tagihan'
+    'id tagihan', 'nomor tagihan',
+    // Alias TikTok Shop (Order / Adjustment ID)
+    'adjustment id', 'order adjustment id', 'order/adjustment id'
   ],
   productName: [
     'product name', 'nama produk', 'namaproduk', 'produk', 'item name',
@@ -24,14 +26,18 @@ const COLUMN_ALIASES = {
     'barang yang dijual', 'nama barang terjual', 'sku produk', 'item',
     'product title', 'judul produk', 'deskripsi produk',
     // Alias Bukalapak (Nama Produk)
-    'judul barang', 'nama barang'
+    'judul barang', 'nama barang',
+    // Alias TikTok Shop (Nama Produk)
+    'variation'
   ],
   sku: [
     'sku', 'kode produk', 'kodebarang', 'product sku', 'item sku',
     'kode barang', 'kode item', 'kode sku', 'seller sku', 'variant sku',
     'kode varian', 'product code', 'kode produk shopee', 'kode produk tiktok',
     'kode produk tokopedia', 'kode produk lazada', 'kode produk bukalapak',
-    'barcode', 'kode batang', 'ean', 'upc'
+    'barcode', 'kode batang', 'ean', 'upc',
+    // Alias TikTok Shop (SKU Reference)
+    'sku reference', 'sku id'
   ],
   settlementAmount: [
     'settlement amount', 'total penghasilan', 'totalpendapatan',
@@ -45,7 +51,7 @@ const COLUMN_ALIASES = {
     'payout amount', 'net settlement', 'total payout amount',
     'pendapatan marketplace', 'pendapatan toko', 'penghasilan toko',
     // Alias bahasa Inggris TikTok Shop (Dana Bersih Cair / Net Payout)
-    'net settlement amount',
+    'net settlement amount', 'total settlement amount', 'net settlement',
     'dana masuk rekening', 'dana masuk', 'uang masuk', 'transfer ke rekening',
     // Alias Bukalapak (Dana Remit / Pencairan)
     'dana remit', 'dana remit seller', 'total remit', 'pencairan dana'
@@ -72,7 +78,9 @@ const COLUMN_ALIASES = {
     'biaya jasa platform', 'potongan platform', 'potongan komisi',
     'biaya admin marketplace', 'admin marketplace', 'biaya transaksi platform',
     // Alias Bukalapak (Potongan Marketplace)
-    'potongan super seller', 'biaya super seller'
+    'potongan super seller', 'biaya super seller',
+    // Alias TikTok Shop (Potongan Marketplace)
+    'platform commission tiktok', 'seller shipping fee', 'customer shipping fee', 'service fee tiktok'
   ],
   affiliateCommission: [
     'affiliate commission', 'komisi afiliasi', 'affiliate fee',
@@ -97,7 +105,9 @@ const COLUMN_ALIASES = {
     'gross product sales', 'total product sales',
     'unit retail price', 'retail price',
     // Alias Bukalapak (Omzet Kotor / Harga Barang)
-    'total harga barang'
+    'total harga barang',
+    // Alias TikTok Shop (Omzet Kotor / Gross Revenue)
+    'total revenue', 'subtotal before seller discounts', 'subtotal after seller discounts', 'gross sales', 'order amount'
   ],
   quantity: [
     'quantity', 'qty', 'jumlah', 'jumlah terjual', 'terjual',
@@ -210,14 +220,16 @@ const COLUMN_ALIASES = {
   ],
   orderStatus: [
     'order status', 'order_status', 'type', 'order type', 'status pesanan', 'status',
-    'jenis pesanan', 'order status shopee', 'order status tiktok'
+    'jenis pesanan', 'order status shopee', 'order status tiktok',
+    // Alias TikTok Shop (Transaction / Order Type)
+    'transaction type'
   ],
   // --- Kolom biaya potongan dari file Excel pelanggan ---
   transactionFee: [
     'biaya transaksi', 'biaya transaksi resmi', 'fee transaksi',
     'biaya transaksi shopee', 'transaction fee shopee', 'biaya transaksi marketplace',
     // Alias bahasa Inggris TikTok Shop
-    'transaction fee'
+    'transaction fee', 'transaction fee tiktok'
   ],
   premium: [
     'premi', 'biaya premi', 'asuransi premi',
@@ -227,7 +239,7 @@ const COLUMN_ALIASES = {
     'pajak', 'pph 22', 'pajak penghasilan', 'tax',
     'ppn', 'pajak pertambahan nilai', 'biaya pajak', 'pajak transaksi',
     // Alias bahasa Inggris TikTok Shop
-    'tax amount'
+    'tax amount', 'vat'
   ],
   additionalServiceFee: [
     'biaya layanan tambahan', 'additional service fee', 'biaya tambahan',
@@ -1809,6 +1821,28 @@ export function generateMassUpdateExcel(
   summary = {},
   adCostPeriod = 0
 ) {
+  const HEADER_FILL = '1E3A8A'
+  const HEADER_FONT = { sz: 11, color: { rgb: 'FFFFFF' }, bold: true }
+  const HEADER_ALIGNMENT = { horizontal: 'center', vertical: 'center', wrapText: true }
+  const HEADER_BORDER = {
+    top: { style: 'thin', color: { rgb: '9CA3AF' } },
+    bottom: { style: 'thin', color: { rgb: '9CA3AF' } },
+    left: { style: 'thin', color: { rgb: '9CA3AF' } },
+    right: { style: 'thin', color: { rgb: '9CA3AF' } },
+  }
+  const DATA_BORDER = {
+    top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+    bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+    left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+    right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+  }
+  const headerStyle = {
+    font: HEADER_FONT,
+    fill: { fgColor: { rgb: HEADER_FILL } },
+    alignment: HEADER_ALIGNMENT,
+    border: HEADER_BORDER,
+  }
+  const dataStyle = { border: DATA_BORDER }
   const rows = []
 
   for (const p of products) {
@@ -1918,55 +1952,50 @@ export function generateMassUpdateExcel(
   // ================================================================
   // SHEET 1: Rekomendasi_Harga_Baru
   // ================================================================
-  const ws1Data = [
-    [
-      'No',
-      'Kode SKU',
-      'Nama Produk',
-      'Terjual Sukses (Pcs)',
-      'Harga Jual Lama (Rp)',
-      'Potongan Marketplace / Pcs (Rp)',
-      'Modal HPP / Pcs (Rp)',
-      'Biaya Packing / Pcs (Rp)',
-      'Laba/Rugi Lama / Pcs (Rp)',
-      'Margin Lama (%)',
-      'Target Profit (%)',
-      'Harga Jual Baru (Rp)',
-      'Selisih Harga (Rp)',
-      'Estimasi Untung Baru / Pcs (Rp)',
-      'Estimasi Margin Baru (%)',
-      'Status & Rekomendasi',
-    ],
+  const ws1Headers = [
+    'No', 'Kode SKU', 'Nama Produk', 'Terjual Sukses (Pcs)',
+    'Harga Jual Lama (Rp)', 'Potongan Marketplace / Pcs (Rp)',
+    'Modal HPP / Pcs (Rp)', 'Biaya Packing / Pcs (Rp)',
+    'Laba/Rugi Lama / Pcs (Rp)', 'Margin Lama (%)',
+    'Target Profit (%)', 'Harga Jual Baru (Rp)',
+    'Selisih Harga (Rp)', 'Estimasi Untung Baru / Pcs (Rp)',
+    'Estimasi Margin Baru (%)', 'Status & Rekomendasi',
   ]
+
+  // Header row dengan gaya profesional
+  const ws1HeaderCells = ws1Headers.map(h => ({
+    t: 's',
+    v: h,
+    s: headerStyle,
+  }))
+
+  const ws1Data = [ws1HeaderCells]
 
   for (const r of rows) {
     ws1Data.push([
-      r.no,
-      r.sku,
-      r.name,
-      r.unitsSold,
-      r.oldPrice,
-      r.marketplaceDeduction,
-      r.hpp,
-      r.packingPerUnit,
-      r.oldProfit,
-      r.marginLama,
-      r.targetProfitPct,
-      r.hasHpp ? r.newPrice : 'Belum Diisi HPP',
-      r.priceDiff,
-      r.estProfit,
-      r.estMargin,
-      r.status,
+      { t: 'n', v: r.no, s: dataStyle, z: '0' },
+      { t: 's', v: r.sku, s: dataStyle },
+      { t: 's', v: r.name, s: dataStyle },
+      { t: 'n', v: r.unitsSold, s: dataStyle, z: '#,##0' },
+      { t: 'n', v: r.oldPrice, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.marketplaceDeduction, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.hpp, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.packingPerUnit, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.oldProfit, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.marginLama / 100, s: dataStyle, z: '0.0%' },
+      { t: 'n', v: r.targetProfitPct / 100, s: dataStyle, z: '0%' },
+      { t: r.hasHpp ? 'n' : 's', v: r.hasHpp ? r.newPrice : 'Belum Diisi HPP', s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.priceDiff, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.estProfit, s: dataStyle, z: '"Rp"#,##0' },
+      { t: 'n', v: r.estMargin / 100, s: dataStyle, z: '0.0%' },
+      { t: 's', v: r.status, s: dataStyle },
     ])
   }
 
   const ws1 = XLSX.utils.aoa_to_sheet(ws1Data)
 
-  for (let rowIdx = 2; rowIdx <= ws1Data.length; rowIdx++) {
-    ws1[`J${rowIdx}`] = { t: 'n', v: ws1Data[rowIdx - 1][9] / 100, z: '0.0%' }
-    ws1[`K${rowIdx}`] = { t: 'n', v: ws1Data[rowIdx - 1][10] / 100, z: '0%' }
-    ws1[`O${rowIdx}`] = { t: 'n', v: ws1Data[rowIdx - 1][14] / 100, z: '0.0%' }
-  }
+  // Tinggi baris header yang lega
+  ws1['!rows'] = [{ hpt: 30 }]
 
   const widths1 = [
     { wch: 5 },   // No
@@ -2013,23 +2042,29 @@ export function generateMassUpdateExcel(
   const labaBersih =
     settlementAmount - totalHpp - totalPackingAll - adCostPeriod - totalRefundCosts
 
+  const ws2Headers = ['Ringkasan Audit Toko', 'Nilai']
+  const ws2HeaderCells = ws2Headers.map(h => ({
+    t: 's',
+    v: h,
+    s: headerStyle,
+  }))
+
   const ws2Data = [
-    ['Ringkasan Audit Toko', 'Nilai'],
-    ['Total Omzet Kotor', totalGross],
-    ['Total Potongan Marketplace', totalGrossDeduction],
-    ['Total Dana Bersih Cair', settlementAmount],
-    ['Total Modal HPP', totalHpp],
-    ['Total Biaya Packing', totalPackingAll],
-    ['Total Biaya Iklan / Ads', adCostPeriod],
-    ['Biaya Hangus Akibat Retur', totalRefundCosts],
-    ['Laba Bersih Sesungguhnya', labaBersih],
+    ws2HeaderCells,
+    ['Total Omzet Kotor', { t: 'n', v: totalGross, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Total Potongan Marketplace', { t: 'n', v: totalGrossDeduction, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Total Dana Bersih Cair', { t: 'n', v: settlementAmount, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Total Modal HPP', { t: 'n', v: totalHpp, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Total Biaya Packing', { t: 'n', v: totalPackingAll, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Total Biaya Iklan / Ads', { t: 'n', v: adCostPeriod, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Biaya Hangus Akibat Retur', { t: 'n', v: totalRefundCosts, s: dataStyle, z: '"Rp"#,##0' }],
+    ['Laba Bersih Sesungguhnya', { t: 'n', v: labaBersih, s: dataStyle, z: '"Rp"#,##0' }],
   ]
 
   const ws2 = XLSX.utils.aoa_to_sheet(ws2Data)
 
-  for (let rowIdx = 2; rowIdx <= ws2Data.length; rowIdx++) {
-    ws2[`B${rowIdx}`] = { t: 'n', v: ws2Data[rowIdx - 1][1], z: '"Rp"#,##0' }
-  }
+  // Tinggi baris header sheet 2
+  ws2['!rows'] = [{ hpt: 30 }]
 
   const widths2 = [{ wch: 35 }, { wch: 20 }]
   ws2['!cols'] = widths2
@@ -2038,7 +2073,7 @@ export function generateMassUpdateExcel(
   XLSX.utils.book_append_sheet(wb, ws1, 'Rekomendasi_Harga_Baru')
   XLSX.utils.book_append_sheet(wb, ws2, 'Ringkasan_Audit_Toko')
 
-  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true })
 }
 
 export function formatRupiah(amount) {

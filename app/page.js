@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Loader2, CheckCircle2 } from 'lucide-react'
 import Header from './components/Header'
 import UploadSection from './components/UploadSection'
 import ResultsSection from './components/ResultsSection'
@@ -12,6 +12,8 @@ import './globals.css'
 
 const HISTORY_KEY = 'audit_history_list'
 const MAX_HISTORY = 10
+const SESSION_PROGRESS_KEY = 'audit_session_progress'
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 
 export default function Home() {
   // View state: 'home' (Tampilan 1) | 'results' (Tampilan 2)
@@ -55,14 +57,18 @@ export default function Home() {
 
   // History state
   const [auditHistory, setAuditHistory] = useState([])
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false)
   const [activeHistoryId, setActiveHistoryId] = useState(null)
   const [isAlreadyPaid, setIsAlreadyPaid] = useState(false)
+  const [expiresAt, setExpiresAt] = useState(null)
+  const isRestoringRef = useRef(false)
 
   // Modal states
   const [caraKerjaOpen, setCaraKerjaOpen] = useState(false)
   const [hargaOpen, setHargaOpen] = useState(false)
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
   const [downloadGuideModalOpen, setDownloadGuideModalOpen] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
 
   // Load history dari localStorage saat mount
   useEffect(() => {
@@ -70,7 +76,42 @@ export default function Home() {
       const saved = localStorage.getItem(HISTORY_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) setAuditHistory(parsed)
+        if (Array.isArray(parsed)) {
+          const now = Date.now()
+          const filtered = parsed.filter((item) => {
+            const expiresAt = item.expiresAt || (item.createdAt ? item.createdAt + SESSION_TTL_MS : 0)
+            return now < expiresAt
+          })
+          // Simpan kembali hasil saringan ke localStorage
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered))
+          setAuditHistory(filtered)
+        }
+      }
+    } catch {}
+    setIsHistoryLoaded(true)
+  }, [])
+
+  // Load progres sesi (HPP, Packing, Iklan, Status Lunas) dari localStorage saat mount
+  // Hanya di-restor jika belum melewati expiresAt (24 jam sejak upload pertama)
+  useEffect(() => {
+    const now = Date.now()
+    try {
+      const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.expiresAt && now < parsed.expiresAt && !isRestoringRef.current) {
+          isRestoringRef.current = true
+          setExpiresAt(parsed.expiresAt)
+          setHppInputs(parsed.hppInputs || {})
+          setPackingCost(parsed.packingCost || 2000)
+          setAdCost(parsed.adCost || 0)
+          setTargetProfit(parsed.targetProfit || 0.15)
+          setUnlocked(parsed.unlocked || false)
+          setPaid(parsed.paid || false)
+          setIsAlreadyPaid(parsed.isAlreadyPaid || false)
+        } else if (parsed.expiresAt && now >= parsed.expiresAt) {
+          localStorage.removeItem(SESSION_PROGRESS_KEY)
+        }
       }
     } catch {}
   }, [])
@@ -83,10 +124,101 @@ export default function Home() {
 
   // Simpan history ke localStorage setiap kali berubah
   useEffect(() => {
+    if (!isHistoryLoaded) return
     try {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(auditHistory))
     } catch {}
-  }, [auditHistory])
+  }, [auditHistory, isHistoryLoaded])
+
+  // Simpan progres sesi (HPP, Packing, Iklan, Status Lunas, Target Profit) ke localStorage
+  // setiap kali nilai berubah. createdAt & expiresAt di-set hanya sekali di handleFileProcessed,
+  // jadi tidak di-reset saat pengguna hanya mengedit input.
+  useEffect(() => {
+    if (isRestoringRef.current) {
+      isRestoringRef.current = false
+      return
+    }
+    try {
+      const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
+      let existing = { createdAt: null, expiresAt: null }
+      if (saved) {
+        try { existing = JSON.parse(saved) } catch {}
+      }
+      const progress = {
+        createdAt: existing.createdAt || Date.now(),
+        expiresAt: existing.expiresAt || Date.now() + SESSION_TTL_MS,
+        hppInputs,
+        packingCost,
+        adCost,
+        targetProfit,
+        unlocked,
+        paid,
+        isAlreadyPaid,
+        updatedAt: new Date().toISOString(),
+      }
+      localStorage.setItem(SESSION_PROGRESS_KEY, JSON.stringify(progress))
+    } catch {}
+  }, [hppInputs, packingCost, adCost, targetProfit, unlocked, paid, isAlreadyPaid])
+
+  // Simpan packingCost ke history aktif saat berubah (dengan preservasi createdAt/expiresAt)
+  useEffect(() => {
+    if (!isHistoryLoaded || !activeHistoryId) return
+    try {
+      setAuditHistory((prev) =>
+        prev.map((h) =>
+          h.id === activeHistoryId
+            ? { ...h, packingCost, createdAt: h.createdAt, expiresAt: h.expiresAt }
+            : h
+        )
+      )
+    } catch {}
+  }, [packingCost, activeHistoryId, isHistoryLoaded])
+
+  // Simpan adCost ke history aktif saat berubah (dengan preservasi createdAt/expiresAt)
+  useEffect(() => {
+    if (!isHistoryLoaded || !activeHistoryId) return
+    try {
+      setAuditHistory((prev) =>
+        prev.map((h) =>
+          h.id === activeHistoryId
+            ? { ...h, adCost, createdAt: h.createdAt, expiresAt: h.expiresAt }
+            : h
+        )
+      )
+    } catch {}
+  }, [adCost, activeHistoryId, isHistoryLoaded])
+
+  // Deteksi lewat 24 jam sejak upload pertama (expiresAt) setiap 30 detik.
+  // Jika Date.now() >= expiresAt, hapus seluruh progres dari localStorage
+  // dan reset state agar pelanggan memulai sesi baru.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      try {
+        const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed.expiresAt && now >= parsed.expiresAt) {
+            localStorage.removeItem(SESSION_PROGRESS_KEY)
+            setExpiresAt(null)
+            setHppInputs({})
+            setPackingCost(2000)
+            setAdCost(0)
+            setTargetProfit(0.15)
+            setUnlocked(false)
+            setPaid(false)
+            setIsAlreadyPaid(false)
+            setAnalysisResult(null)
+            setFileData(null)
+            setAuditHistory([])
+            setActiveHistoryId(null)
+            setView('home')
+          }
+        }
+      } catch {}
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleFileProcessed = useCallback(
     async (records, mapping, headers, fileName, requiredColumnConfidence = {}) => {
@@ -121,6 +253,30 @@ export default function Home() {
 
         setAnalysisResult(normalizeAnalysisResult(result))
 
+        // Set createdAt & expiresAt (24 jam sejak upload pertama) di localStorage
+        // Tidak di-reset saat pengguna hanya mengedit input HPP/Packing/Iklan.
+        const now = Date.now()
+        setExpiresAt(now + SESSION_TTL_MS)
+        try {
+          const existing = localStorage.getItem(SESSION_PROGRESS_KEY)
+          let parsed = { createdAt: null, expiresAt: null }
+          if (existing) {
+            try { parsed = JSON.parse(existing) } catch {}
+          }
+          localStorage.setItem(SESSION_PROGRESS_KEY, JSON.stringify({
+            createdAt: parsed.createdAt || now,
+            expiresAt: parsed.expiresAt || now + SESSION_TTL_MS,
+            hppInputs,
+            packingCost,
+            adCost,
+            targetProfit,
+            unlocked,
+            paid,
+            isAlreadyPaid,
+            updatedAt: new Date().toISOString(),
+          }))
+        } catch {}
+
         // Simpan ke riwayat otomatis
         const totalSettlement = result.summary?.settlementAmount || 0
         const name = fileName || 'laporan-penjualan.xlsx'
@@ -133,20 +289,23 @@ export default function Home() {
         )
 
         const historyEntry = {
-          id: Date.now().toString(),
+          id: now.toString(),
           fileName: name,
           uploadedAt: new Date().toISOString(),
+          createdAt: now,
+          expiresAt: now + SESSION_TTL_MS,
           summary: result.summary,
           products: result.products,
           hppMap: hppInputs,
           packingCost,
+          adCost,
           targetProfit,
           isPaid: !!existingPaid,
         }
 
         setIsAlreadyPaid(!!existingPaid)
-        setUnlocked(!!existingPaid || unlocked)
-        setPaid(!!existingPaid || paid)
+        setUnlocked(false)
+        setPaid(false)
 
         const newHistory = [historyEntry, ...auditHistory].slice(0, MAX_HISTORY)
         setAuditHistory(newHistory)
@@ -190,6 +349,24 @@ export default function Home() {
     setUnlocked(item.isPaid === true)
     setPaid(item.isPaid === true)
     setIsAlreadyPaid(item.isPaid === true)
+
+    // Perpanjang sesi 24 jam saat membuka riwayat lama
+    try {
+      const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
+          setExpiresAt(parsed.expiresAt)
+        } else {
+          setExpiresAt(Date.now() + SESSION_TTL_MS)
+        }
+      } else {
+        setExpiresAt(Date.now() + SESSION_TTL_MS)
+      }
+    } catch {
+      setExpiresAt(Date.now() + SESSION_TTL_MS)
+    }
+
     setActiveHistoryId(id)
     setView('results')
   }, [auditHistory])
@@ -206,11 +383,34 @@ export default function Home() {
     setAuditHistory([])
     setActiveHistoryId(null)
     setView('home')
+    setAnalysisResult(null)
+    setFileData(null)
+    setIsAlreadyPaid(false)
+    setUnlocked(false)
+    setPaid(false)
   }, [])
+
+  const handleDeleteSelectedHistory = useCallback((ids) => {
+    setAuditHistory((prev) => prev.filter((h) => !ids.includes(h.id)))
+    if (activeHistoryId && ids.includes(activeHistoryId)) {
+      setActiveHistoryId(null)
+      setView('home')
+      setAnalysisResult(null)
+      setFileData(null)
+      setIsAlreadyPaid(false)
+      setUnlocked(false)
+      setPaid(false)
+    }
+  }, [activeHistoryId])
 
   const handleUpdateHistory = useCallback((id, updates) => {
     setAuditHistory((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, ...updates } : h))
+      prev.map((h) => {
+        if (h.id !== id) return h
+        // Selalu preservasi createdAt dan expiresAt asli
+        const { createdAt, expiresAt, ...restUpdates } = updates
+        return { ...h, ...restUpdates, createdAt: h.createdAt, expiresAt: h.expiresAt }
+      })
     )
   }, [])
 
@@ -230,6 +430,10 @@ export default function Home() {
     setUnlocked(false)
     setPaid(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const handleOpenHistoryModal = useCallback(() => {
+    setShowHistoryModal(true)
   }, [])
 
   const handleMulaiAnalisisClick = useCallback(() => {
@@ -341,10 +545,7 @@ export default function Home() {
       <Header
         view={view}
         historyCount={auditHistory.length}
-        onHistoryClick={() => {
-          setView('home')
-          setActiveHistoryId(null)
-        }}
+        onOpenHistoryModal={handleOpenHistoryModal}
         onCaraKerjaClick={() => setCaraKerjaOpen(true)}
         onHargaClick={() => setHargaOpen(true)}
         onBackToHome={handleBackToHome}
@@ -399,13 +600,6 @@ export default function Home() {
                 onHppFileUpload={handleHppFileUpload}
                 detectedFormat={detectedFormat}
               />
-
-              <AuditHistoryList
-                history={auditHistory}
-                onLoadHistory={handleLoadHistory}
-                onDeleteHistory={handleDeleteHistory}
-                onClearAllHistory={handleClearAllHistory}
-              />
             </div>
           </main>
 
@@ -421,7 +615,7 @@ export default function Home() {
         </>
       ) : (
         <>
-          <main className="pt-24 pb-12 min-h-[calc(100vh-200px)]">
+          <main className="pt-4 pb-12 min-h-[calc(100vh-200px)]">
             <ResultsSection
               summary={analysisResult?.summary}
               products={analysisResult?.products || []}
@@ -488,8 +682,14 @@ export default function Home() {
               </li>
             </ol>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm text-slate-700">
-              <p className="font-medium mb-2">? Semua pemrosesan data dilakukan secara lokal di browser Anda</p>
-              <p className="font-medium">? File laporan tidak diupload ke server kami</p>
+              <p className="font-medium mb-2 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                Semua pemrosesan data dilakukan secara lokal di browser Anda
+              </p>
+              <p className="font-medium flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                File laporan tidak diupload ke server kami
+              </p>
             </div>
             <button onClick={() => setCaraKerjaOpen(false)} className="mt-4 btn-outline w-full py-3 rounded-xl font-semibold text-slate-700">
               Saya Mengerti
@@ -514,17 +714,27 @@ export default function Home() {
               </svg>
             </button>
             <h3 className="text-xl font-bold text-slate-900 mb-4">Transparansi Harga</h3>
-            <p className="text-slate-600 text-sm leading-relaxed mb-6">
-              Cek ringkasan analisis secara gratis. Buka kunci file perbaikan dan
-              rekomendasi harga jual optimal dengan biaya satu kali.
-            </p>
+            <ul className="space-y-2 text-sm text-slate-600 mb-6">
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 flex-shrink-0">✓</span>
+                Cek Ringkasan Analisis = Gratis.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 flex-shrink-0">✓</span>
+                Buka kunci file perbaikan &amp; rekomendasi harga yang optimal.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 flex-shrink-0">✓</span>
+                Cukup 1x bayar, Tanpa Biaya Langganan Bulanan
+              </li>
+            </ul>
             <div className="space-y-3 mb-6">
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <span className="text-slate-600 text-sm">Cek Ringkasan Profit</span>
                 <span className="text-emerald-600 font-semibold text-sm">Gratis</span>
               </div>
               <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
-                <span className="text-amber-700 text-sm">Buka Laporan Lengkap + File Perbaikan</span>
+                <span className="text-amber-700 text-sm">Buka Laporan Lengkap + Recomendasi Harga</span>
                 <span className="text-amber-700 font-semibold text-sm">Rp 15.000</span>
               </div>
             </div>
@@ -612,6 +822,34 @@ export default function Home() {
             <button onClick={() => setDownloadGuideModalOpen(false)} className="mt-4 btn-outline w-full py-3 rounded-xl font-semibold text-slate-700">
               Saya Mengerti
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Riwayat Audit 24 Jam */}
+      {showHistoryModal && (
+        <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
+          <div className="modal-content glass-card rounded-3xl p-8 max-w-2xl mx-auto mt-20 shadow-2xl border border-slate-200/50" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowHistoryModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition-colors">
+              <svg className="w-6 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Riwayat Audit 24 Jam</h3>
+            <p className="text-amber-800 text-sm font-medium mb-6">
+              ⏰ Progres input HPP & status laporan tersimpan otomatis selama 24 jam sejak mulai audit. Riwayat akan terhapus otomatis setelah 24 jam.
+            </p>
+            <AuditHistoryList
+              history={auditHistory}
+              onLoadHistory={(id) => {
+                setShowHistoryModal(false)
+                handleLoadHistory(id)
+              }}
+              onDeleteHistory={handleDeleteHistory}
+              onDeleteSelectedHistory={handleDeleteSelectedHistory}
+              onClearAllHistory={handleClearAllHistory}
+            />
+            {auditHistory.length === 0 && (
+              <p className="text-sm text-slate-500 text-center mt-8">Belum ada riwayat audit di perangkat ini.</p>
+            )}
           </div>
         </div>
       )}
