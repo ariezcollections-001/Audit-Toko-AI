@@ -432,48 +432,19 @@ const totalHpp = summary?.totalHpp || 0
           </p>
         </div>
 
-        {/* Kotak input biaya iklan permanen di atas area scroll Langkah 2 */}
-        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl shadow-sm">
-          <div className="flex items-center gap-4 justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-800">Total Biaya Iklan / Ads Periode Ini (Opsional - Rp)</p>
-              <p className="text-[10px] text-blue-500">
-                Masukkan total pengeluaran iklan (Shopee Ads / TikTok Ads / TopAds) selama periode laporan ini jika
-                Anda beriklan. Jika tidak ada potongan/pengeluaran iklan, tidak perlu diisi (biarkan Rp 0).
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-blue-700 text-sm">Rp</span>
-              <input
-                defaultValue={String(adCostPeriod)}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9]/g, '')
-                  const val = raw ? parseInt(raw) : 0
-                  if (onAdCostChange) onAdCostChange(val)
-                }}
-                className="w-32 px-3 py-2 bg-white border border-blue-400 rounded-lg text-right text-sm font-medium text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="0"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="max-h-[450px] overflow-y-auto border border-gray-200 rounded-lg mb-8">
-          <HppInputTable
+        <HppInputTable
           products={products}
           onHppChange={onHppChange}
           packingCost={packingCost}
+          setPackingCost={setPackingCost}
           packingCostPerProduct={packingCostPerProduct}
           onPackingCostChange={handlePackingCostChange}
-          adCostPeriod={adCostPeriod}
-          onAdCostChange={onAdCostChange}
           totalAllUnits={summary?.totalAllUnits || 0}
           totalUnitsSuccess={summary?.totalUnitsSuccess || 0}
           totalUnitsReturned={summary?.totalUnitsReturned || 0}
           returnedOrders={returnedOrders}
           isPaid={isPaid || isAlreadyPaid}
         />
-        </div>
 
         {/* Gerbang Pembayaran QRIS — ditampilkan sebelum pembayaran selesai */}
         {!isPaid && !isAlreadyPaid && (
@@ -620,20 +591,55 @@ const totalHpp = summary?.totalHpp || 0
         ) : null}
 
         {isPaid || isAlreadyPaid ? (
-          <div className={isPriceTableZoomed ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 md:p-8' : ''}>
+          <div className={isPriceTableZoomed ? 'fixed inset-0 z-50 bg-white flex flex-col' : ''}>
             {/* Sticky header bar */}
-            <div className={isPriceTableZoomed ? 'sticky top-0 z-20 bg-slate-50 border-b px-4 md:px-6 py-4 mb-4 md:mb-6' : 'mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4'}>
+            <div className={isPriceTableZoomed ? 'shrink-0 border-b border-slate-200 bg-white px-4 py-2 flex flex-wrap items-center justify-between gap-2' : 'mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4'}>
               {isPriceTableZoomed ? (
                 <>
-                  <div className="flex items-center gap-3">
-                    <h2 className="font-bold text-gray-900 text-lg md:text-xl">Rekomendasi Harga Jual Baru</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-bold text-slate-900 text-sm">Rekomendasi Harga Jual Baru</h2>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                      <span className="text-xs text-slate-500 font-medium leading-none">Target:</span>
+                      {[10, 15, 20, 25, 30].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => setTargetProfit(val / 100)}
+                          className={`px-2 py-0.5 rounded-md text-xs font-medium transition ${
+                            targetProfit === val / 100
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {val}%
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          const val = parseFloat(prompt('Masukkan target profit persen (contoh: 18):', (targetProfit * 100).toString()))
+                          if (!isNaN(val) && val > 0 && val < 100) setTargetProfit(val / 100)
+                        }}
+                        className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
+                      >
+                        Custom
+                      </button>
+                    </div>
+                    <span className="text-xs text-slate-500 font-medium">= {(targetProfit * 100).toFixed(0)}%</span>
+                    {(unlocked || isAlreadyPaid) && (
+                      <button
+                        onClick={handleDownloadExcel}
+                        disabled={products.length === 0}
+                        className={`px-2 py-1 rounded-md text-xs font-medium transition shadow-sm bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 disabled:opacity-50 ${products.length === 0 ? 'cursor-not-allowed' : ''}`}
+                      >
+                        <Download className="w-3 h-3" /> Unduh Mass Update
+                      </button>
+                    )}
                     <button
                       onClick={() => setIsPriceTableZoomed(false)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm shadow-hover bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition shadow-sm bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
                     >
-                      <Minimize2 className="w-4 h-4" /> Perkecil Layar
+                      <Minimize2 className="w-3 h-3" /> Perkecil
                     </button>
                   </div>
                 </>
@@ -657,51 +663,14 @@ const totalHpp = summary?.totalHpp || 0
               )}
             </div>
 
-            {/* Scrollable content wrapper */}
-            <div className={isPriceTableZoomed ? 'pt-6 md:pt-8' : ''}>
-
-            {/* Target Profit Bar — dipindahkan tepat di atas tabel Langkah 4 */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-900">Target Profit Bersih:</span>
-                    <div className="flex gap-2">
-                      {[10, 15, 20, 25, 30].map((val) => (
-                        <button
-                          key={val}
-                          onClick={() => setTargetProfit(val / 100)}
-                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                            targetProfit === val / 100
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {val}%
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => {
-                          const val = parseFloat(prompt('Masukkan target profit persen (contoh: 18):', (targetProfit * 100).toString()))
-                          if (!isNaN(val) && val > 0 && val < 100) setTargetProfit(val / 100)
-                        }}
-                        className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
-                      >
-                        Lainnya
-                      </button>
-                    </div>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    (target profit = {(targetProfit * 100).toFixed(0)}%)
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Semua rekomendasi harga jual akan dihitung ulang sesuai target profit ini.
-                </p>
+            {/* Indikator target profit — di luar area scroll (hanya mode zoom) */}
+            {isPriceTableZoomed && (
+              <div className="mb-2 text-xs text-slate-500 text-right">
+                Target profit = {(targetProfit * 100).toFixed(0)}%
               </div>
-            </div>
+            )}
 
-            <div className="max-h-[450px] overflow-y-auto border border-gray-200 rounded-lg mb-8">
+            {/* ProfitLeakTable — mengelola scroll internal sendiri (thead dan kolom tidak ikut scroll) */}
             <ProfitLeakTable
               products={products}
               claims={claims}
@@ -711,28 +680,10 @@ const totalHpp = summary?.totalHpp || 0
               feeRatio={computed?.feeRatio ?? 0}
               packingCostPerProduct={packingCostPerProduct}
               packingMode={packingMode}
+              zoomed={isPriceTableZoomed}
             />
-            </div>
-            {isPriceTableZoomed && (unlocked || isAlreadyPaid) && (
-              <div className="mt-8 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Unduh File Perbaikan</h3>
-                  <p className="text-sm text-gray-600">
-                    File Excel berisi daftar produk yang perlu update harga jual berdasarkan HPP dan target profit yang Sudah Anda pilih, Sebesar = {(targetProfit * 100).toFixed(0)}%.
-                  </p>
-                </div>
-                <button
-                  onClick={handleDownloadExcel}
-                  disabled={products.length === 0}
-                  className={`w-full btn-gradient text-white rounded-2xl font-semibold shadow-premium hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-premium transition-all inline-flex items-center justify-center gap-2 px-6 py-4`}
-                >
-                  <Download className="w-5 h-5" />
-                  Unduh File Mass Update Harga
-                </button>
-              </div>
-            )}
             
-            {/* Download button - only when normal mode */}
+            {/* Download button - keluar dari area scroll, selalu terlihat di bagian bawah (mode normal) */}
             {!isPriceTableZoomed && (unlocked || isAlreadyPaid) && (
               <div className="mt-8 flex items-center justify-between">
                 <div>
@@ -751,8 +702,6 @@ const totalHpp = summary?.totalHpp || 0
                 </button>
               </div>
             )}
-            
-            </div>
           </div>
         ) : null}
 
@@ -890,24 +839,6 @@ const totalHpp = summary?.totalHpp || 0
           </div>
         )}
 
-        {(unlocked || isAlreadyPaid) && !isPriceTableZoomed && (
-          <div className="mt-8 flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Unduh File Perbaikan</h3>
-              <p className="text-sm text-gray-600">
-                File Excel berisi daftar produk yang perlu update harga jual berdasarkan HPP dan target profit yang Sudah Anda pilih, Sebesar = {(targetProfit * 100).toFixed(0)}%.
-              </p>
-            </div>
-            <button
-              onClick={handleDownloadExcel}
-              disabled={products.length === 0}
-              className={`w-full btn-gradient text-white rounded-2xl font-semibold shadow-premium hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-premium transition-all inline-flex items-center justify-center gap-2 px-6 py-4`}
-            >
-              <Download className="w-5 h-5" />
-              Unduh File Mass Update Harga
-            </button>
-          </div>
-        )}
       </div>
     </section>
   )

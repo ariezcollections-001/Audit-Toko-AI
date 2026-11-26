@@ -13,6 +13,7 @@ export default function ProfitLeakTable({
   feeRatio = 0.1,
   packingCostPerProduct = {},
   packingMode = {},
+  zoomed = false,
 }) {
   // Hitung ulang laba/rugi per produk dan harga jual baru sesuai biaya packing terbaru
   const recompute = useMemo(() => {
@@ -265,7 +266,7 @@ export default function ProfitLeakTable({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className={`overflow-hidden${zoomed ? ' flex flex-1 flex-col' : ''} ${!zoomed ? 'bg-white rounded-2xl border border-gray-200 shadow-sm' : ''}`}>
 
 
       {!unlocked && (
@@ -280,7 +281,7 @@ export default function ProfitLeakTable({
         </div>
       )}
       {unlocked && (
-        <div className="p-6 space-y-6">
+        <div className={`${zoomed ? 'flex-1 flex flex-col' : 'p-6 space-y-6'}`}>
           {/* Semua produk dalam urutan asli laporan (tidak diurutkan ulang) */}
           {(() => {
             const allProducts = recompute.products
@@ -304,30 +305,35 @@ export default function ProfitLeakTable({
                 <p className="text-sm text-gray-600 mb-3">
                   
                 </p>
-                <table className="w-full text-sm">
-                  <thead className="bg-amber-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-amber-700 uppercase">Produk</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Harga Jual Lama</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Potongan Marketplace</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Modal + Packing</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Laba/Rugi Lama</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">
+
+                {/* === TABEL PRODUK — hanya isi tabel yang scroll, thead tetap diam === */}
+                <div className={`overflow-x-auto overflow-y-auto ${zoomed ? 'flex-1 shrink-0' : 'max-h-[420px] shrink-0'}`}>
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-20 bg-amber-50 border-b border-amber-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-amber-700 uppercase">Produk</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Harga Jual Lama</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Potongan Marketplace</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Modal + Packing</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Laba/Rugi Lama</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">
                     Harga Jual Baru
                     <p className="text-[10px] text-amber-500 mt-0.5">Sesuai target profit terpilih</p>
                   </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Untung Baru &amp; Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-100">
-                    {renderProductRows(allProducts)}
-                  </tbody>
-                </table>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-amber-700 uppercase">Untung Baru &amp; Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100">
+                      {renderProductRows(allProducts)}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )
           })()}
-          {claims.length > 0 && (
-            <div>
+          {/* === SELISIH ONGKIR & BIAYA RETUR — disembunyikan saat layar diperbesar === */}
+          {!zoomed && claims.length > 0 && (
+            <div className="shrink-0">
               <div className="flex items-center gap-2 mb-3">
                 <Truck className="w-5 h-5 text-blue-600" />
                 <h4 className="font-bold text-blue-700">🔵 Selisih Ongkir & Biaya Retur</h4>
