@@ -44,7 +44,7 @@ const adminApi = async (action, body = {}, opts = {}) => {
    tidak dire-create setiap kali AdminPage me-render (fix kehilangan fokus)
    ===================================================================== */
 
-export const TabStats = ({ analytics, analyticsPeriod, setAnalytics, fetchData }) => {
+export const TabStats = ({ analytics, analyticsPeriod, setAnalytics, fetchData, adminPassword, showToast }) => {
   const [localPeriod, setLocalPeriod] = useState(analyticsPeriod)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
@@ -63,9 +63,21 @@ export const TabStats = ({ analytics, analyticsPeriod, setAnalytics, fetchData }
   })()
 
   const handleResetStats = async () => {
+    if (!adminPassword) { showToast('Masukkan password admin terlebih dahulu.', 'error'); return }
     setShowResetConfirm(false)
-    setAnalytics({ visits: [], uploads: [], unlocks: [] })
-    await fetchData()
+    try {
+      const res = await adminApi('reset_analytics', { password: adminPassword })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.error || 'Gagal mereset statistik.', 'error')
+        return
+      }
+      setAnalytics({ visits: [], uploads: [], unlocks: [] })
+      await fetchData()
+      showToast('Statistik pengunjung berhasil direset ke 0.', 'success')
+    } catch {
+      showToast('Gagal server saat mereset statistik.', 'error')
+    }
   }
 
   return (
@@ -883,7 +895,7 @@ export default function AdminPage() {
             </div>
           </header>
 
-          {activeTab === 1 && <TabStats analytics={analytics} analyticsPeriod="harian" setAnalytics={setAnalytics} fetchData={fetchData} />}
+          {activeTab === 1 && <TabStats analytics={analytics} analyticsPeriod="harian" setAnalytics={setAnalytics} fetchData={fetchData} adminPassword={adminPassword} showToast={show} />}
           {activeTab === 2 && <TabTransactions transactions={transactions} onResetDemo={handleResetTestData} />}
           {activeTab === 3 && <TabInbox supportTickets={supportTickets} fetchData={fetchData} showToast={show} />}
           {activeTab === 4 && <TabVouchers vouchers={vouchers} setVouchers={setVouchers} adminPassword={adminPassword} showToast={show} />}

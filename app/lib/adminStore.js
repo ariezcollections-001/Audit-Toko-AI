@@ -280,6 +280,13 @@ export class AdminStore {
     return this._getStore()
   }
 
+  async resetAnalytics() {
+    const store = await this._getStore()
+    store.analytics = { visits: [], uploads: [], unlocks: [] }
+    await this._setStore(store)
+    return store.analytics
+  }
+
   async resetStore() {
     await this._setStore({ ...DEFAULT_STORE })
     return DEFAULT_STORE

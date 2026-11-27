@@ -166,6 +166,17 @@ export async function POST(req) {
       return NextResponse.json({ success: true, message: 'Data reset berhasil' })
     }
 
+    /* ---------- RESET ANALYTICS (STATISTIK PENGUNJUNG) ---------- */
+    if (action === 'reset_analytics') {
+      const { password } = body
+      const config = await adminStore.getConfig()
+      if (password !== config.adminPassword) {
+        return NextResponse.json({ error: 'Password admin diperlukan' }, { status: 401 })
+      }
+      await adminStore.resetAnalytics()
+      return NextResponse.json({ success: true, message: 'Statistik pengunjung berhasil direset' })
+    }
+
     return NextResponse.json({ error: 'Aksi tidak dikenali' }, { status: 400 })
   } catch (err) {
     console.error('Admin POST error:', err)
