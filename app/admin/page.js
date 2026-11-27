@@ -655,15 +655,13 @@ export const TabSecurity = ({ config, setConfig, adminPassword, setAdminPassword
 export default function AdminPage() {
   const { toast, show } = useToast()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
   useEffect(() => {
     // Setelah mount: baca localStorage untuk mempertahankan login saat refresh halaman
     try { setIsAuthenticated(localStorage.getItem('admin_authenticated') === '1') } catch {}
+    setIsCheckingAuth(false)
   }, [])
-
-  useEffect(() => {
-    try { localStorage.setItem('admin_authenticated', isAuthenticated ? '1' : '') } catch {}
-  }, [isAuthenticated])
   const [loginPassword, setLoginPassword] = useState('')
   const [loginPasswordVisible, setLoginPasswordVisible] = useState(false)
   const [loginError, setLoginError] = useState('')
@@ -768,6 +766,11 @@ export default function AdminPage() {
     { id: 6, label: 'Kontrol Logo, Tarif, Banner & AI', icon: <Palette size={18} /> },
     { id: 7, label: 'Keamanan & Pemeliharaan', icon: <Shield size={18} /> },
   ]
+
+  // Saat masih memeriksa localStorage, render kosong agar tidak muncul halaman login secara sempat
+  if (isCheckingAuth) {
+    return null
+  }
 
   if (!isAuthenticated) {
     return (
