@@ -1819,7 +1819,9 @@ export function generateMassUpdateExcel(
   packingMode = {},
   feeRatio = 0.1,
   summary = {},
-  adCostPeriod = 0
+  adCostPeriod = 0,
+  fileName = 'Laporan Audit Toko.xlsx',
+  marketplace = 'Marketplace'
 ) {
   const HEADER_FILL = '1E3A8A'
   const HEADER_FONT = { sz: 11, color: { rgb: 'FFFFFF' }, bold: true }
@@ -2020,27 +2022,76 @@ export function generateMassUpdateExcel(
   // ================================================================
   // SHEET 2: Ringkasan_Audit_Toko
   // ================================================================
-  const totalGross = summary?.totalGross || 0
-  const totalGrossDeduction = summary?.totalGrossDeduction || 0
-  const settlementAmount = summary?.settlementAmount || 0
-  const totalHpp = summary?.totalHpp || 0
-  const totalRefundCosts = summary?.totalRefundCosts || 0
+  const fileNameLabel = fileName || 'Laporan Audit Toko.xlsx'
+  const marketplaceLabel = marketplace || 'Marketplace'
 
-  let totalPackingAll = 0
+  const totalGross = Number(summary?.totalGross || 0)
+  const totalGrossDeduction = Number(summary?.totalGrossDeduction || 0)
+  const settlementAmount = Number(summary?.settlementAmount || 0)
+  const totalHpp = Number(summary?.totalHpp || 0)
+  const totalPackingAll = Number(summary?.totalPacking || 0)
+  const totalAdCost = Number(summary?.totalAdCost || adCostPeriod || 0)
+  const totalRefundCosts = Number(summary?.totalRefundCosts || summary?.biayaHangusRetur || 0)
+  const returnedOrdersCount = Array.isArray(summary?.returnedOrders) ? summary.returnedOrders.length : 0
+  const totalUnitsSuccess = Number(summary?.totalUnitsSuccess || 0)
+  const totalOrders = Number(summary?.totalOrders || 0)
+  const targetProfitPct = Number(targetProfit || 0)
+
+  const totalPengeluaranInternal = totalHpp + totalPackingAll + totalAdCost
+  const labaBersih = settlementAmount - totalPengeluaranInternal - totalRefundCosts
+  const marginLabaBersih = settlementAmount > 0 ? labaBersih / settlementAmount : 0
+
+  // Proyeksi baru berdasarkan rekomendasi harga .900 (Sheet 1)
+  let estimasiTotalLabaBaru = 0
   for (const p of products) {
     const units = Math.max(p.unitsSold || 0, 1)
-    const orders = p.orders || 0
-    const uniqueOrderCount = Number(p.uniqueOrderCount) || orders || 0
+    const hppValue = Number(p.hpp) || 0
     const packingCostVal = Number(packingCostPerProduct[p.id]) || 0
-    const mode = packingMode[p.id] || 'perOrder'
-    const totalPackingProduk = mode === 'perUnit'
-      ? packingCostVal * units
-      : packingCostVal * uniqueOrderCount
-    totalPackingAll += totalPackingProduk
+    const hasHpp = hppValue > 0 || packingCostVal > 0
+    if (hasHpp && p.newPrice && p.newPrice > 0) {
+      estimasiTotalLabaBaru += (Number(p.estProfit) || 0) * units
+    }
+  }
+  const potensiKenaikanProfit = estimasiTotalLabaBaru - labaBersih
+
+  // Pecahan potongan per kolom asli Excel (dari deductionBreakdown)
+  const deductionBreakdown = Array.isArray(summary?.deductionBreakdown) ? summary.deductionBreakdown : []
+
+  // Total selisih ongkir dari hasil analisis (claims)
+  const totalSelisihOngkir = Number(summary?.claimAmount || 0)
+
+  // --- Gaya tambahan untuk Sheet 2 ---
+  const SECTION_FONT = { sz: 11, color: { rgb: 'FFFFFF' }, bold: true }
+  const sectionStyle = {
+    font: SECTION_FONT,
+    fill: { fgColor: { rgb: HEADER_FILL } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: HEADER_BORDER,
+  }
+  const LABEL_FONT = { sz: 10, color: { rgb: '374151' } }
+  const LABEL_BOLD_FONT = { sz: 10, color: { rgb: '374151' }, bold: true }
+  const VALUE_FONT = { sz: 10, color: { rgb: '111827' } }
+  const VALUE_BOLD_FONT = { sz: 10, color: { rgb: '111827' }, bold: true }
+  const PROFIT_FILL = { fgColor: { rgb: 'D1FAE5' } } // hijau lembut
+  const LOSS_FILL = { fgColor: { rgb: 'FEE2E2' } }   // merah lembut
+
+  const addSection = (title) => {
+    ws2Data.push([
+      { t: 's', v: title, s: sectionStyle },
+      { t: 's', v: '', s: sectionStyle },
+    ])
   }
 
-  const labaBersih =
-    settlementAmount - totalHpp - totalPackingAll - adCostPeriod - totalRefundCosts
+  const addRow = (label, value, numFormat, labelStyle = LABEL_FONT, valueStyle = VALUE_FONT, cellFill = null) => {
+    ws2Data.push([
+      { t: 's', v: label, s: { ...dataStyle, font: labelStyle, fill: cellFill } },
+      {
+        t: typeof value === 'number' ? 'n' : 's',
+        v: value,
+        s: { ...dataStyle, font: valueStyle, fill: cellFill, z: numFormat },
+      },
+    ])
+  }
 
   const ws2Headers = ['Ringkasan Audit Toko', 'Nilai']
   const ws2HeaderCells = ws2Headers.map(h => ({
@@ -2049,24 +2100,66 @@ export function generateMassUpdateExcel(
     s: headerStyle,
   }))
 
-  const ws2Data = [
-    ws2HeaderCells,
-    ['Total Omzet Kotor', { t: 'n', v: totalGross, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Total Potongan Marketplace', { t: 'n', v: totalGrossDeduction, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Total Dana Bersih Cair', { t: 'n', v: settlementAmount, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Total Modal HPP', { t: 'n', v: totalHpp, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Total Biaya Packing', { t: 'n', v: totalPackingAll, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Total Biaya Iklan / Ads', { t: 'n', v: adCostPeriod, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Biaya Hangus Akibat Retur', { t: 'n', v: totalRefundCosts, s: dataStyle, z: '"Rp"#,##0' }],
-    ['Laba Bersih Sesungguhnya', { t: 'n', v: labaBersih, s: dataStyle, z: '"Rp"#,##0' }],
-  ]
+  const ws2Data = [ws2HeaderCells]
+
+  // --- 1. IDENTITAS & PARAMETER AUDIT ---
+  addSection('1. IDENTITAS & PARAMETER AUDIT')
+  addRow('Nama File Laporan', fileNameLabel)
+  addRow('Platform Marketplace', marketplaceLabel)
+  addRow('Total Pesanan Selesai', totalOrders, '0')
+  addRow('Total Unit Terjual', totalUnitsSuccess, '#,##0')
+  addRow('Target Profit Bersih Dipilih (%)', targetProfitPct / 100, '0%')
+
+  // --- 2. REKAPITULASI DANA MARKETPLACE ---
+  addSection('2. REKAPITULASI DANA MARKETPLACE')
+  addRow('Total Omzet Kotor', totalGross, '"Rp"#,##0')
+  addRow('Total Potongan Marketplace', totalGrossDeduction, '"Rp"#,##0')
+  addRow('Total Dana Bersih Cair', settlementAmount, '"Rp"#,##0')
+
+  // --- 3. RINCIAN KOMPONEN POTONGAN & KEBOCORAN DANA ---
+  addSection('3. RINCIAN KOMPONEN POTONGAN & KEBOCORAN DANA')
+  if (deductionBreakdown.length > 0) {
+    for (const item of deductionBreakdown) {
+      addRow(String(item.label || 'Potongan Lainnya'), Number(item.amount || 0), '"Rp"#,##0')
+    }
+  } else {
+    addRow('Tidak ada data pecahan potongan yang terbaca dari file', 0, '"Rp"#,##0')
+  }
+  addRow('Total Selisih Ongkir (Beban Penjual)', totalSelisihOngkir, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
+  addRow('Total Biaya Hangus Akibat Retur / Batal', totalRefundCosts, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
+  addRow('Jumlah Pesanan Retur / Batal', returnedOrdersCount, '0')
+
+  // --- 4. PENGELUARAN INTERNAL & LABA BERSIH TOKO ---
+  addSection('4. PENGELUARAN INTERNAL & LABA BERSIH TOKO')
+  addRow('Total Modal Produk (HPP)', totalHpp, '"Rp"#,##0')
+  addRow('Total Biaya Packing', totalPackingAll, '"Rp"#,##0')
+  addRow('Total Biaya Iklan / Ads', totalAdCost, '"Rp"#,##0')
+  addRow('Total Pengeluaran Internal Toko (HPP + Packing + Iklan)', totalPengeluaranInternal, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
+
+  const isProfit = labaBersih >= 0
+  const labaFill = isProfit ? PROFIT_FILL : LOSS_FILL
+  const labaValueColor = isProfit ? { rgb: '065F46' } : { rgb: '991B1B' }
+  addRow(
+    'Laba Bersih Toko Sesungguhnya (Rp)',
+    labaBersih,
+    '"Rp"#,##0',
+    LABEL_BOLD_FONT,
+    { ...VALUE_BOLD_FONT, color: labaValueColor },
+    labaFill
+  )
+  addRow('Margin Laba Bersih Toko (%)', marginLabaBersih, '0.0%')
+
+  // --- 5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU (.900) ---
+  addSection('5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU (.900)')
+  addRow('Estimasi Total Laba Bersih Baru (Jika Harga Diperbarui)', estimasiTotalLabaBaru, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
+  addRow('Potensi Kenaikan Profit Tambahan (+Rp)', potensiKenaikanProfit, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
 
   const ws2 = XLSX.utils.aoa_to_sheet(ws2Data)
 
   // Tinggi baris header sheet 2
   ws2['!rows'] = [{ hpt: 30 }]
 
-  const widths2 = [{ wch: 35 }, { wch: 20 }]
+  const widths2 = [{ wch: 55 }, { wch: 25 }]
   ws2['!cols'] = widths2
 
   const wb = XLSX.utils.book_new()

@@ -596,35 +596,43 @@ export const TabSecurity = ({ config, setConfig, adminPassword, setAdminPassword
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
         <h3 className="text-lg font-bold text-slate-900 mb-4">Ubah Password Login /admin</h3>
         <form onSubmit={handleChangePassword} className="space-y-3">
-          <div className="relative">
-            <input
-              type={newPasswordVisible ? 'text' : 'password'}
-              value={localNewPassword}
-              onChange={(e) => setLocalNewPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setNewPasswordVisible(!newPasswordVisible)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              {newPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700 mb-1">Password Baru</label>
+            <div className="relative">
+              <input
+                type={newPasswordVisible ? 'text' : 'password'}
+                value={localNewPassword}
+                onChange={(e) => setLocalNewPassword(e.target.value)}
+                placeholder="Masukkan password baru (minimal 6 karakter)"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setNewPasswordVisible(!newPasswordVisible)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {newPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
-          <div className="relative">
-            <input
-              type={confirmPasswordVisible ? 'text' : 'password'}
-              value={localConfirmPassword}
-              onChange={(e) => setLocalConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              {confirmPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700 mb-1">Konfirmasi Password Baru</label>
+            <div className="relative">
+              <input
+                type={confirmPasswordVisible ? 'text' : 'password'}
+                value={localConfirmPassword}
+                onChange={(e) => setLocalConfirmPassword(e.target.value)}
+                placeholder="Ketik ulang password baru yang sama"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {confirmPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           {passwordError && (<p className="text-sm text-red-600">{passwordError}</p>)}
           <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors">Simpan Password Baru</button>
@@ -646,9 +654,12 @@ export const TabSecurity = ({ config, setConfig, adminPassword, setAdminPassword
 
 export default function AdminPage() {
   const { toast, show } = useToast()
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    try { return localStorage.getItem('admin_authenticated') === '1' } catch { return false }
-  })
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    // Setelah mount: baca localStorage untuk mempertahankan login saat refresh halaman
+    try { setIsAuthenticated(localStorage.getItem('admin_authenticated') === '1') } catch {}
+  }, [])
 
   useEffect(() => {
     try { localStorage.setItem('admin_authenticated', isAuthenticated ? '1' : '') } catch {}
@@ -710,6 +721,7 @@ export default function AdminPage() {
     try {
       const res = await adminApi('login', { password: loginPassword })
       if (res.ok) {
+        try { localStorage.setItem('admin_authenticated', '1') } catch {}
         setIsAuthenticated(true); setLoginError(''); setAdminPassword(loginPassword); setLoginPassword(''); fetchData()
         show('Login berhasil.', 'success')
       } else {
@@ -816,7 +828,7 @@ export default function AdminPage() {
             ))}
           </nav>
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-100">
-            <button onClick={() => setIsAuthenticated(false)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+            <button onClick={() => { try { localStorage.removeItem('admin_authenticated') } catch {}; setIsAuthenticated(false) }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
               <LogOut className="w-4 h-4" /> Keluar
             </button>
           </div>
