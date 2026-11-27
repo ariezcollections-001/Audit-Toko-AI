@@ -19,12 +19,23 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 export default function Home() {
   // View state: 'home' (Tampilan 1) | 'results' (Tampilan 2)
   // Di-persist ke localStorage agar tidak kembali ke beranda saat refresh
-  const [view, setView] = useState(() => {
+  // Diinisialisasi 'home' agar konsisten antara server dan client saat SSR/hydrasi.
+  // Nilai dari localStorage di-sinkronkan setelah montase via useEffect di bawah.
+  const [view, setView] = useState('home')
+  // isHydrated digunakan agar selama hydrasi (pertama kali client render)
+  // konten menampilkan skeleton yang sama antara server dan client,
+  // menghindari flash halaman beranda sebelum pindah ke view yang benar.
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Baca view yang disimpan dari localStorage setelah komponen montase (client only)
+  // agar tidak terjadi hydration mismatch saat refresh halaman.
+  useEffect(() => {
     try {
       const saved = localStorage.getItem('audit_view')
-      return saved === 'results' ? 'results' : 'home'
-    } catch { return 'home' }
-  })
+      if (saved === 'results') setView('results')
+    } catch {}
+    setIsHydrated(true)
+  }, [])
 
   useEffect(() => {
     try { localStorage.setItem('audit_view', view) } catch {}
@@ -677,7 +688,14 @@ export default function Home() {
         </div>
       )}
 
-      {view === 'home' ? (
+      {!isHydrated ? (
+        <div className="min-h-screen flex items-center justify-center py-20">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-2" />
+            <p className="text-slate-600">Memuat halaman…</p>
+          </div>
+        </div>
+      ) : view === 'home' ? (
         <>
           <main className="pt-8 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
