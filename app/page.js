@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import Header from './components/Header'
 import BrandLogo from './components/BrandLogo'
@@ -8,6 +8,7 @@ import UploadSection from './components/UploadSection'
 import ResultsSection from './components/ResultsSection'
 import Footer from './components/Footer'
 import AuditHistoryList from './components/AuditHistoryList'
+import AiChatWidget from './components/AiChatWidget'
 import { calculateAnalysis, smartMapHeaders, formatRupiah } from './lib/analysis'
 import './globals.css'
 
@@ -637,6 +638,65 @@ export default function Home() {
     }
   }, [view, showUploadLoading])
 
+  // Ringkasan angka laporan aktif yang dikirim ke Asisten AI (hanya ketika view hasil audit aktif)
+  const reportContext = useMemo(() => {
+    if (!analysisResult?.summary || !fileData) return null
+    const s = analysisResult.summary
+    const rawBreakdown = Array.isArray(s.deductionBreakdown) ? s.deductionBreakdown : []
+    const breakdown = rawBreakdown.map((d) => ({
+      label: d.label || '-',
+      amount: Math.round(Number(d.amount || 0)),
+    }))
+
+    const shippingDiffEntry = breakdown.find((d) =>
+      /selisih ongkir|shipping difference|shipping diff/i.test(String(d.label || ''))
+    )
+    const totalShippingDiscrepancy = shippingDiffEntry ? shippingDiffEntry.amount : 0
+
+    const totalSettlement = Number(s.settlementAmount || 0)
+    const totalHpp = Number(s.totalHpp || 0)
+    const totalPacking = Number(s.totalPacking || 0)
+    const adsCost = Number(s.totalAdCost || 0)
+    const totalReturnLoss = Number(s.totalRefundCosts || s.biayaHangusRetur || 0)
+    // Laba bersih konsisten dengan tampilan layar: Dana Cair − HPP − Packing − Iklan − Biaya Hangus Retur
+    const netProfit = totalSettlement - totalHpp - totalPacking - adsCost - totalReturnLoss
+    const netMarginPercent = totalSettlement > 0 ? (netProfit / totalSettlement) * 100 : 0
+
+    const topProducts = (analysisResult.products || [])
+      .slice(0, 10)
+      .map((p) => ({
+        name: p.name || '-',
+        qty: Math.max(Number(p.unitsSold || 0), 0),
+        oldPrice: Math.round(Number(p.oldPrice || 0)),
+        deductionPerUnit: Math.round(Number(p.marketplaceDeduction || 0)),
+        hpp: Math.round(Number(p.hpp || 0)),
+        packing: Math.round(Number(p.packingPerUnit || 0)),
+        newPrice: Math.round(Number(p.newPrice || 0)),
+        newProfitPerUnit: Math.round(Number(p.estProfit || 0)),
+      }))
+
+    return {
+      fileName: fileData.fileName || '-',
+      marketplace: marketplace || 'auto',
+      totalOrders: Math.max(Number(s.totalOrders || 0), 0),
+      totalUnitsSold: Math.max(Number(s.totalUnits || 0), 0),
+      totalGrossSales: Math.round(Number(s.totalGross || 0)),
+      totalDeductions: Math.round(Number(s.totalGrossDeduction || 0)),
+      totalSettlement: Math.round(totalSettlement),
+      deductionBreakdown: breakdown,
+      totalShippingDiscrepancy,
+      totalReturnLoss: Math.round(totalReturnLoss),
+      returnedOrdersCount: Array.isArray(s.returnedOrders) ? s.returnedOrders.length : 0,
+      totalHpp: Math.round(totalHpp),
+      totalPacking: Math.round(totalPacking),
+      adsCost: Math.round(adsCost),
+      netProfit: Math.round(netProfit),
+      netMarginPercent: Math.round(netMarginPercent * 10) / 10,
+      targetProfit: Math.round((Number(targetProfit || 0.15) || 0.15) * 100),
+      topProducts,
+    }
+  }, [analysisResult, fileData, marketplace, targetProfit])
+
   return (
     <>
       {/* Mode Maintenance — kunci area upload jika aktif */}
@@ -736,6 +796,7 @@ export default function Home() {
             onHargaClick={() => setHargaOpen(true)}
             onMulaiAnalisisClick={handleMulaiAnalisisClick}
           />
+          <AiChatWidget />
         </>
       ) : (
         <>
@@ -779,6 +840,7 @@ export default function Home() {
               }}
             />
           </main>
+          <AiChatWidget reportContext={reportContext} />
         </>)
       }
 

@@ -1,5 +1,4 @@
 import './globals.css'
-import AiChatWidget from './components/AiChatWidget'
 
 export const metadata = {
   title: 'AuditToko AI - Analisis Profit Shopee Terbaik',
@@ -11,7 +10,6 @@ export default function RootLayout({ children }) {
     <html lang="id">
       <body className="bg-slate-50 text-slate-900 antialiased">
         {children}
-        <AiChatWidget />
       </body>
     </html>
   )

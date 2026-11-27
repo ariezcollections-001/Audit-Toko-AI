@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { MessageCircle, Send, Mail, Sparkles, X, Loader2, CheckCircle } from 'lucide-react'
-export default function AiChatWidget({ aiChatEnabled, aiCustomKnowledge }) {
+export default function AiChatWidget({ aiChatEnabled, aiCustomKnowledge, reportContext }) {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [resolvedAiChatEnabled, setResolvedAiChatEnabled] = useState(true)
   const [resolvedAiCustomKnowledge, setResolvedAiCustomKnowledge] = useState('')
@@ -125,6 +125,7 @@ export default function AiChatWidget({ aiChatEnabled, aiCustomKnowledge }) {
           messages: messages.slice(-MAX_MESSAGES),
           userMessage: text,
           customKnowledge: effectiveKnowledge,
+          reportContext: reportContext || null,
         }),
       })
 

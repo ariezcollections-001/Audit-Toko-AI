@@ -35,7 +35,7 @@ export async function POST(req) {
       )
     }
 
-    const { messages, userMessage, customKnowledge } = await req.json()
+    const { messages, userMessage, customKnowledge, reportContext } = await req.json()
 
     const apiKey = process.env.GEMINI_API_KEY
 
@@ -51,9 +51,89 @@ export async function POST(req) {
     // Gabungkan custom knowledge dari body dan dari admin config
     const combinedKnowledge = [customKnowledge, adminKnowledge].filter(Boolean).join('\n\n')
 
+    // Blok data laporan pelanggan yang sedang aktif di layar (Sheet 1 & Sheet 2 hasil unduhan Excel)
+    let reportContextBlock = ''
+    if (reportContext) {
+      const {
+        fileName,
+        marketplace,
+        totalOrders,
+        totalUnitsSold,
+        totalGrossSales,
+        totalDeductions,
+        totalSettlement,
+        deductionBreakdown,
+        totalShippingDiscrepancy,
+        totalReturnLoss,
+        returnedOrdersCount,
+        totalHpp,
+        totalPacking,
+        adsCost,
+        netProfit,
+        netMarginPercent,
+        targetProfit,
+        topProducts,
+      } = reportContext
+
+      const breakdownText =
+        Array.isArray(deductionBreakdown) && deductionBreakdown.length > 0
+          ? deductionBreakdown
+              .map((d) => `- ${d.label}: Rp ${Number(d.amount || 0)}`)
+              .join('\n')
+          : '-'
+
+      const productsText =
+        Array.isArray(topProducts) && topProducts.length > 0
+          ? topProducts
+              .map(
+                (p) =>
+                  `- ${p.name}: qty ${p.qty}, harga jual lama Rp ${p.oldPrice}, potongan/pcs Rp ${p.deductionPerUnit}, HPP Rp ${p.hpp}, packing Rp ${p.packing}, harga baru Rp ${p.newPrice}, estimasi profit baru/pcs Rp ${p.newProfitPerUnit}`
+              )
+              .join('\n')
+          : '-'
+
+      reportContextBlock = `
+
+DATA LAPORAN PELANGGAN YANG SEDANG AKTIF DI LAYAR
+==================================================
+Berikut adalah ringkasan data audit yang sedang dilihat pelanggan di layar web (sumber: Sheet 1 "Rekomendasi_Harga_Baru" dan Sheet 2 "Ringkasan_Audit_Toko" dari file Excel hasil unduhan). Gunakan blok ini untuk menjelaskan asal-usul setiap nominal Rupiah secara akurat dan ramah, selalu sapai dengan "Kak"/"Kakak".
+
+• File: ${fileName} | Marketplace: ${marketplace}
+• Total Pesanan: ${totalOrders}
+• Total Unit Terjual: ${totalUnitsSold}
+• Total Omzet Kotor (Gross Sales): Rp ${totalGrossSales}
+• Total Potongan Marketplace: Rp ${totalDeductions}
+• Total Dana Bersih Cair (Settlement): Rp ${totalSettlement}
+• Rincian Potongan per Kolom Asli Excel:
+${breakdownText}
+• Selisih Ongkir / Discrepancy Pengiriman: Rp ${totalShippingDiscrepancy}
+• Biaya Hangus Akibat Retur / Batal: Rp ${totalReturnLoss}
+• Jumlah Pesanan Retur / Batal: ${returnedOrdersCount}
+• Total Modal HPP: Rp ${totalHpp}
+• Total Biaya Packing: Rp ${totalPacking}
+• Biaya Iklan (Ads): Rp ${adsCost}
+• Laba Bersih (Net Profit): Rp ${netProfit}
+• Margin Bersih (Net Margin): ${netMarginPercent}%
+• Target Profit: ${targetProfit}%
+
+• 10 Produk Teratas (dari Sheet 1 Rekomendasi_Harga_Baru):
+${productsText}
+
+Cara membaca asal-usul nominal:
+- Omzet Kotor = jumlah harga jual per produk dari file Excel pelanggan (belum dipotong).
+- Dana Bersih Cair = Omzet Kotor − Total Potongan Marketplace.
+- Total Potongan = jumlah semua komponen potongan dari kolom asli Excel (biaya admin, komisi platform, ongkir, retur, dan lain-lain).
+- Laba Bersih = Dana Bersih Cair − Modal HPP − Biaya Packing − Biaya Iklan − Biaya Hangus Retur.
+- Margin Bersih = Laba Bersih ÷ Dana Bersih Cair × 100.
+- Harga baru & profit baru per produk berasal dari Sheet 1 "Rekomendasi_Harga_Baru", dihitung dari HPP, packing, biaya iklan, dan target profit pelanggan.
+`
+    }
+
     const SYSTEM_INSTRUCTION = combinedKnowledge
-      ? BASE_SYSTEM_INSTRUCTION + `\n\nPENGETAHUAN TAMBAHAN DARI ADMIN:\n${combinedKnowledge}\n`
-      : BASE_SYSTEM_INSTRUCTION
+      ? BASE_SYSTEM_INSTRUCTION +
+        `\n\nPENGETAHUAN TAMBAHAN DARI ADMIN:\n${combinedKnowledge}\n` +
+        reportContextBlock
+      : BASE_SYSTEM_INSTRUCTION + reportContextBlock
 
     // Jika API key belum diisi (lokal), balas dengan cadangan ramah tanpa error
     if (!apiKey) {
