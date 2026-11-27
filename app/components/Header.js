@@ -49,69 +49,69 @@ export default function Header({
       <header className="w-full">
       <div className="border-b border-slate-100/80 bg-white/80 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+          <div className="flex justify-between items-center h-12">
             {/* Logo */}
             <div className="flex items-center gap-3 cursor-pointer select-none" onClick={onLogoClick}>
               <BrandLogo className="" height={32} width={32} />
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+            <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
               {isHome ? (
                 <>
                   <button
                     onClick={onBackToHome}
-                    className="text-slate-900 font-medium transition-colors hover:text-slate-600"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     Beranda
                   </button>
                   <button
                     onClick={onCaraKerjaClick}
-                    className="text-slate-600 transition-colors hover:text-slate-900"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     Cara Kerja
                   </button>
                   <button
                     onClick={onHargaClick}
-                    className="text-slate-600 transition-colors hover:text-slate-900"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     Harga
                   </button>
                   <button
                     onClick={onOpenHistoryModal}
-                    className="flex items-center gap-1.5 text-slate-600 font-medium transition-colors hover:text-slate-900"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/70 text-blue-700 font-medium text-xs md:text-sm hover:bg-blue-100 transition"
                   >
                     <Clock className="w-4 h-4" />
-                    Riwayat <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
+                    Riwayat <span className="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
                   </button>
                 </>
               ) : (
                 <>
                   <button
                     onClick={onBackToHome}
-                    className="flex items-center gap-2 text-slate-900 font-medium transition-colors hover:text-slate-600"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     <ArrowRight className="w-4 h-4" rotate="-90" />
                     Kembali ke Beranda
                   </button>
                   <button
                     onClick={onCaraKerjaClick}
-                    className="text-slate-600 transition-colors hover:text-slate-900"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     Cara Kerja
                   </button>
                   <button
                     onClick={onHargaClick}
-                    className="text-slate-600 transition-colors hover:text-slate-900"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     Harga
                   </button>
                   <button
                     onClick={onOpenHistoryModal}
-                    className="flex items-center gap-1.5 text-slate-600 font-medium transition-colors hover:text-slate-900"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/70 text-blue-700 font-medium text-xs md:text-sm hover:bg-blue-100 transition"
                   >
                     <Clock className="w-4 h-4" />
-                    Riwayat <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
+                    Riwayat <span className="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded-full">+{historyCount}</span>
                   </button>
                 </>
               )}
