@@ -1,4 +1,14 @@
 import XLSX from 'xlsx-js-style'
+import {
+  ALIASES,
+  ROOT_RULES,
+  METADATA_WHITELIST,
+  normalizeHeaderDeep,
+  scoreRootRule,
+  isCostHeader,
+  isMetadataHeader,
+  buildMergedAliases
+} from './columnAliases'
 
 /* ============================================================================
    SMART HEADER MAPPER - Multi-marketplace column recognition
@@ -488,7 +498,7 @@ const COLUMN_ALIASES = {
 }
 
 function getColumnAliases() {
-  return COLUMN_ALIASES
+  return ALIASES
 }
 
 // Marketplace-specific column alias mappings (multi-marketplace support)
@@ -573,7 +583,7 @@ const TOKOPEDIA_COLUMN_ALIASES = getTokopediaColumnAliases()
 const LAZADA_COLUMN_ALIASES = getLazadaColumnAliases()
 
 const MARKETPLACE_ALIASES = {
-  shopee: COLUMN_ALIASES,
+  shopee: ALIASES,
   tiktok: TIKTOK_COLUMN_ALIASES,
   tokopedia: TOKOPEDIA_COLUMN_ALIASES,
   lazada: LAZADA_COLUMN_ALIASES,
@@ -622,27 +632,10 @@ const MARKETPLACE_COLUMNS = {
  * Get column aliases for a specific marketplace
  */
 function getMarketplaceAliases(marketplace) {
-  return MARKETPLACE_ALIASES[marketplace] || COLUMN_ALIASES
+  return buildMergedAliases(marketplace)
 }
 
 
-const COST_KEYWORDS = [
-  'biaya', 'potongan', 'fee', 'commission', 'koreksi', 'adjustment',
-  'penalty', 'denda', 'pokok', 'cogs', 'modal', 'dpp', 'ppn',
-  'pajak', 'tarif', 'biaya layanan', 'biaya transaksi',
-  'ongkir', 'ongkos', 'kirim', 'pengiriman', 'diskon', 'voucher', 'promo',
-  'subsidi', 'reimburse', 'refund', 'retur', 'pengembalian', 'asuransi',
-  'premi', 'cod', 'cod fee', 'biaya cod', 'denda', 'penalti',
-  'reversi', 'chargeback', 'kurs', 'transfer', 'penarikan', 'saldo',
-  'langganan', 'listing', 'featured', 'boost', 'top ads', 'search ads',
-  'afiliasi', 'influencer', 'reimburse', 'impor', 'cukai', 'bea',
-  'gateway', 'dompet', 'e-wallet', 'bank', 'va', 'kartu kredit',
-  'cicilan', 'bpnl', 'shopeepay', 'gopay', 'ovo', 'dana', 'link aja',
-  'spaylater', 'akulaku', 'atome', 'cashback', 'koin', 'poin', 'reward',
-  'bonus', 'insentif', 'konsinyasi', 'deposit', 'penjaminan', 'garansi',
-  'admin', 'operasional', 'overhead', 'paket', 'komisi', 'tambahan',
-  'lainnya', 'lain-lain'
-]
 
 export function normalizeHeader(h) {
   // Ubah semua pemisah simbol (_ - . / \) menjadi spasi, lalu collapse spasi ganda
@@ -686,50 +679,57 @@ function scoreMatch(header, alias) {
 
 export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   const headers = rawHeaders.map(h => String(h).trim())
-  const normalized = headers.map(normalizeHeader)
+  const normalizedDeep = headers.map(normalizeHeaderDeep) // { cleanFull, cleanBase, original }
   const mapping = {}
   const usedIndices = new Set()
 
-  // Use marketplace-specific aliases if available; in 'auto' mode merge ALL
-  // marketplace alias sets so any column from Shopee/TikTok/Tokopedia/Lazada/Bukalapak
-  // is recognized regardless of which marketplace generated the file.
-  let aliases
-  if (marketplace !== 'auto') {
-    aliases = getMarketplaceAliases(marketplace)
-  } else {
-    aliases = { ...COLUMN_ALIASES }
-    for (const mp of ['shopee', 'tiktok', 'tokopedia', 'lazada', 'bukalapak']) {
-      const mpAliases = getMarketplaceAliases(mp)
-      for (const [key, list] of Object.entries(mpAliases)) {
-        if (!aliases[key]) aliases[key] = []
-        for (const a of list) {
-          if (!aliases[key].includes(a)) aliases[key].push(a)
-        }
-      }
-    }
-  }
+  // Kamus gabungan seluruh marketplace (auto maupun spesifik) agar deteksi
+  // lintas marketplace selalu aktif.
+  const aliases = buildMergedAliases(marketplace)
 
-  // Ambang keyakinan untuk kolom wajib (productPrice & settlementAmount)
-  // Jika di bawah 80, dianggap tidak yakin dan harus memicu Fallback Manual Mapping.
+  // Ambang keyakinan untuk kolom wajib (productPrice & settlementAmount).
+  // Jika di bawah 80, dianggap tidak yakin → memicu Fallback Manual Mapping.
   const STRICT_CONFIDENCE = 80
   const REQUIRED_COLUMNS = ['productPrice', 'settlementAmount']
   const requiredColumnConfidence = {}
 
-  for (const [key, alias] of Object.entries(aliases)) {
+  // ============================================================================
+  // FASE 1: Cocokkan setiap kunci kamus terhadap header menggunakan kedua
+  // versi normalisasi (cleanFull & cleanBase) + aturan pola akar kata.
+  // Kolom yang dikenal mendapatkan skor ≥ 85 (alias eksak 100, substring 85,
+  // pola akar kata 90), sehingga kotak kuning tidak muncul secara tidak perlu.
+  // ============================================================================
+  for (const [key, aliasList] of Object.entries(aliases)) {
     let bestScore = 0
     let bestIdx = -1
-    for (let i = 0; i < normalized.length; i++) {
+    for (let i = 0; i < headers.length; i++) {
       if (usedIndices.has(i)) continue
-      for (const a of alias) {
-        const score = scoreMatch(normalized[i], a)
+      const { cleanFull, cleanBase } = normalizedDeep[i]
+
+      // Pencocokan alias eksak terhadap kedua versi normalisasi
+      for (const a of aliasList) {
+        let score = scoreMatch(cleanFull, a)
+        const scoreBase = scoreMatch(cleanBase, a)
+        if (scoreBase > score) score = scoreBase
         if (score > bestScore) {
           bestScore = score
           bestIdx = i
         }
       }
+
+      // Aturan pola akar kata (root word)
+      const rule = ROOT_RULES[key]
+      if (rule) {
+        const rScore = Math.max(scoreRootRule(cleanFull, rule), scoreRootRule(cleanBase, rule))
+        if (rScore > bestScore) {
+          bestScore = rScore
+          bestIdx = i
+        }
+      }
     }
-    // Kolom wajib memakai ambang 80, kolom lainnya tetap 50
-    const threshold = REQUIRED_COLUMNS.includes(key) ? STRICT_CONFIDENCE : 50
+    // Kolom wajib ambang 80; kolom lainnya ambang 85 (hanya kolom yang
+    // benar-benar dikenal yang di-alias, agar tidak ada pencocokan akak).
+    const threshold = REQUIRED_COLUMNS.includes(key) ? STRICT_CONFIDENCE : 85
     if (bestScore >= threshold && bestIdx >= 0) {
       mapping[key] = headers[bestIdx]
       usedIndices.add(bestIdx)
@@ -741,27 +741,31 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
   }
 
-  // Kumpulkan nama kolom yang sudah di-aliases untuk deduplikasi
+  // Kumpulkan nama kolom yang sudah di-alias untuk deduplikasi
   const mappedColumnNames = new Set()
   for (const [key, colName] of Object.entries(mapping)) {
-    if (!key.startsWith('cost_')) {
+    if (!key.startsWith('cost_') && !key.startsWith('meta_')) {
       mappedColumnNames.add(normalizeHeader(colName))
     }
   }
 
-  // Add any remaining columns as cost columns if they look like cost/price/deduction
-  // Skip columns that are too similar to already-mapped columns (hindari double counting)
-  for (let i = 0; i < normalized.length; i++) {
+  // ============================================================================
+  // FASE 2: Sisa kolom nominal yang mengandung kata kunci potongan/beban
+  // (biaya, fee, komisi, diskon, dll) → masuk ke rincian potongan (cost_*)
+  // dan TIDAK pernah memicu kotak kuning.
+  // ============================================================================
+  for (let i = 0; i < headers.length; i++) {
     if (usedIndices.has(i)) continue
-    const header = normalized[i]
+    const header = normalizedDeep[i].cleanFull
     const original = headers[i]
 
-    // Skip jika kolom ini terlalu mirip dengan kolom yang sudah di-alias (deduplikasi)
+    // Skip jika terlalu mirip dengan kolom yang sudah di-alias (deduplikasi)
     let isDuplicate = false
     for (const mapped of mappedColumnNames) {
-      if (header === mapped) { isDuplicate = true; break }
-      if (header.includes(mapped) || mapped.includes(header)) { isDuplicate = true; break }
-      // Cek overlap kata minimal 3 karakter
+      if (header === mapped || header.includes(mapped) || mapped.includes(header)) {
+        isDuplicate = true
+        break
+      }
       const hWords = header.split(' ').filter(Boolean)
       const mWords = mapped.split(' ').filter(Boolean)
       const overlap = hWords.filter(w => mWords.includes(w) && w.length >= 3).length
@@ -769,10 +773,21 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
     if (isDuplicate) continue
 
-    // Expanded cost/deduction keyword detection for unknown column names
-    if (COST_KEYWORDS.some(kw => header.includes(kw)) ||
-        /harga|ongkir|commission|fee|diskon|potongan|voucher|subsidi|payout|netto|bersih|tarif|ppn|pph|pajak|cod|asuransi|premi|denda|penalti|reversi|chargeback|kurs|transfer|penarikan|saldo|langganan|listing|featured|boost|top ads|search ads|afiliasi|influencer|reimburse|impor|cukai|bea|gateway|dompet|e-wallet|bank|va|kartu kredit|cicilan|bpnl|shopeepay|gopay|ovo|dana|link aja|spaylater|akulaku|atome|cashback|koin|poin|reward|bonus|insentif|konsinyasi|deposit|penjaminan|asuransi|garansi|biaya admin|biaya operasional|biaya overhead|biaya koreksi|biaya penyesuaian|biaya transaksi|biaya jasa|biaya layanan|biaya paket|biaya komisi|biaya potongan|biaya tambahan|biaya lain|biaya lainnya|biaya lainnya/i.test(header)) {
+    if (isCostHeader(header)) {
       mapping[`cost_${i}`] = original
+      usedIndices.add(i)
+    }
+  }
+
+  // ============================================================================
+  // FASE 3: Metadata non-keuangan (daftar putih) → meta_*, diabaikan dari
+  // unrecognizedColumns dan tidak pernah memicu kotak kuning.
+  // ============================================================================
+  for (let i = 0; i < headers.length; i++) {
+    if (usedIndices.has(i)) continue
+    const header = normalizedDeep[i].cleanFull
+    if (isMetadataHeader(header)) {
+      mapping[`meta_${i}`] = headers[i]
       usedIndices.add(i)
     }
   }
@@ -1238,7 +1253,7 @@ initShopeeDeductionColumns()
     // Fallback: indir semua header baris terhadap kamus alias untuk kunci ini,
     // agar nilai tetap terbaca meskipun pemetaan otomatis melewatkan kolom
     // (mis. karena perbedaan pemisah simbol atau nama properti yang tidak persis).
-    const aliases = COLUMN_ALIASES[key] || []
+    const aliases = ALIASES[key] || []
     const normAliases = aliases.map(a => normalizeHeader(a))
     for (const h of Object.keys(row)) {
       if (normAliases.includes(normalizeHeader(h))) {
@@ -1497,7 +1512,7 @@ initShopeeDeductionColumns()
       let lostFeeAmount = 0
       deductionColumns.forEach((dc) => {
         if (dc.key === 'refund') return
-        const actualCol = findActualDeductionColumn(dc.key, COLUMN_ALIASES[dc.key] || [])
+        const actualCol = findActualDeductionColumn(dc.key, ALIASES[dc.key] || [])
         if (!actualCol || usedDeductionCols.has(actualCol)) return
         usedDeductionCols.add(actualCol)
         const val = toNumber(row[actualCol] || 0)
@@ -1524,7 +1539,7 @@ initShopeeDeductionColumns()
     // Gunakan Math.abs agar nilai negatif tetap terakumulasi sebagai potongan positif
     // Hindari double-counting: skip kolom yang sudah diproses oleh deduction key lain
     deductionColumns.forEach((dc) => {
-      const actualCol = findActualDeductionColumn(dc.key, COLUMN_ALIASES[dc.key] || [])
+      const actualCol = findActualDeductionColumn(dc.key, ALIASES[dc.key] || [])
       if (!actualCol || usedDeductionCols.has(actualCol)) return
       usedDeductionCols.add(actualCol)
       const val = toNumber(row[actualCol] || 0)
@@ -1766,7 +1781,10 @@ initShopeeDeductionColumns()
   }
 
   // Kumpulkan semua nama kolom asli dari mapping untuk ditampilkan di Langkah 1
-  const detectedColumns = Object.values(mapping).filter(Boolean)
+  const detectedColumns = Object.entries(mapping)
+    .filter(([k]) => !k.startsWith('meta_'))
+    .map(([, v]) => v)
+    .filter(Boolean)
 
   // === SAFETY NET: jika total masih 0 padahal ada baris data, scan langsung ===
   // Kolom asli Excel untuk memastikan Gross_Product_Sales dan Net_Settlement_Amount
