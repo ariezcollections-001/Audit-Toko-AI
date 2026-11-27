@@ -1,8 +1,29 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { MessageCircle, Send, Mail, Sparkles, X, Loader2, CheckCircle } from 'lucide-react'
-export default function AiChatWidget() {
+export default function AiChatWidget({ aiChatEnabled, aiCustomKnowledge }) {
+  const [configLoaded, setConfigLoaded] = useState(false)
+  const [resolvedAiChatEnabled, setResolvedAiChatEnabled] = useState(true)
+  const [resolvedAiCustomKnowledge, setResolvedAiCustomKnowledge] = useState('')
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await fetch('/api/admin?action=config')
+        if (res.ok) {
+          const data = await res.json()
+          setResolvedAiChatEnabled(data.aiChatEnabled !== false)
+          setResolvedAiCustomKnowledge(data.aiCustomKnowledge || '')
+        }
+      } catch {}
+      setConfigLoaded(true)
+    }
+    loadConfig()
+  }, [])
+
+  // Semua hook dipanggil tanpa kondisi (Rules of Hooks) sebelum return awal
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [messages, setMessages] = useState([])
@@ -68,6 +89,16 @@ export default function AiChatWidget() {
     return null
   }, [])
 
+  const pathname = usePathname()
+
+  if (pathname?.startsWith('/admin')) return null
+
+  const effectiveEnabled = aiChatEnabled !== undefined ? aiChatEnabled : resolvedAiChatEnabled
+  const effectiveKnowledge = aiCustomKnowledge !== undefined ? aiCustomKnowledge : resolvedAiCustomKnowledge
+
+  if (!configLoaded && aiChatEnabled === undefined) return null
+  if (!effectiveEnabled) return null
+
   const handleSend = async (text) => {
     if (!text.trim()) return
     setError('')
@@ -93,6 +124,7 @@ export default function AiChatWidget() {
         body: JSON.stringify({
           messages: messages.slice(-MAX_MESSAGES),
           userMessage: text,
+          customKnowledge: effectiveKnowledge,
         }),
       })
 

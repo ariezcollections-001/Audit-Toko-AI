@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import Header from './components/Header'
+import BrandLogo from './components/BrandLogo'
 import UploadSection from './components/UploadSection'
 import ResultsSection from './components/ResultsSection'
 import Footer from './components/Footer'
@@ -17,7 +18,17 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 
 export default function Home() {
   // View state: 'home' (Tampilan 1) | 'results' (Tampilan 2)
-  const [view, setView] = useState('home')
+  // Di-persist ke localStorage agar tidak kembali ke beranda saat refresh
+  const [view, setView] = useState(() => {
+    try {
+      const saved = localStorage.getItem('audit_view')
+      return saved === 'results' ? 'results' : 'home'
+    } catch { return 'home' }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('audit_view', view) } catch {}
+  }, [view])
 
   // Analysis state
   const [analysisResult, setAnalysisResult] = useState(null)
@@ -32,6 +43,23 @@ export default function Home() {
   const [adCost, setAdCost] = useState(0)
   const [unlocked, setUnlocked] = useState(false)
   const [paid, setPaid] = useState(false)
+
+  // Admin config state
+  const [adminConfig, setAdminConfig] = useState({
+    brandName: 'AuditToko AI',
+    brandLogoUrl: '',
+    auditPrice: 15000,
+    maintenanceMode: false,
+    bannerEnabled: false,
+    bannerType: 'text',
+    bannerText: '',
+    bannerColor: 'blue',
+    bannerImageUrl: '',
+    bannerLink: '',
+    aiChatEnabled: true,
+    aiCustomKnowledge: '',
+  })
+  const [adminConfigLoaded, setAdminConfigLoaded] = useState(false)
 
   /**
    * Normalisasi objek hasil calculateAnalysis agar struktur properti 100% sama
@@ -70,6 +98,18 @@ export default function Home() {
   const [downloadGuideModalOpen, setDownloadGuideModalOpen] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
 
+  // Selalu scroll ke paling atas saat halaman di-refresh atau dimuat ulang
+  // (baik halaman beranda maupun halaman hasil analisis)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [])
+
+  // Saat berpindah antar view (beranda <-> hasil analisis), selalu kembali ke paling atas
+  // agar tampilan awal konsisten setelah upload berhasil atau kembali ke beranda
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [view])
+
   // Load history dari localStorage saat mount
   useEffect(() => {
     try {
@@ -89,6 +129,51 @@ export default function Home() {
       }
     } catch {}
     setIsHistoryLoaded(true)
+  }, [])
+
+  // Load admin config dari /api/admin (brandName, logo, auditPrice, maintenanceMode, dll.)
+  useEffect(() => {
+    let mounted = true
+    const loadAdminConfig = async () => {
+      try {
+        const res = await fetch('/api/admin?action=config&public=1&t=' + Date.now(), { cache: 'no-store' })
+        if (res.ok) {
+          const data = await res.json()
+          if (mounted) {
+            setAdminConfig({
+              brandName: data.brandName || 'AuditToko AI',
+              brandLogoUrl: data.brandLogoUrl || '',
+              auditPrice: data.auditPrice ?? 15000,
+              maintenanceMode: data.maintenanceMode === true,
+              bannerEnabled: data.bannerEnabled === true,
+              bannerType: data.bannerType || 'text',
+              bannerText: data.bannerText || '',
+              bannerColor: data.bannerColor || 'blue',
+              bannerImageUrl: data.bannerImageUrl || '',
+              bannerLink: data.bannerLink || '',
+              aiChatEnabled: data.aiChatEnabled !== false,
+              aiCustomKnowledge: data.aiCustomKnowledge || '',
+            })
+            setAdminConfigLoaded(true)
+
+            // Catat kunjungan halaman ke admin analytics (senyap di latar belakang)
+            await fetch('/api/admin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'recordEvent',
+                type: 'visits',
+                payload: { page: '/', source: 'direct' },
+              }),
+            }).catch(() => {})
+          }
+        }
+      } catch {
+        if (mounted) setAdminConfigLoaded(true)
+      }
+    }
+    loadAdminConfig()
+    return () => { mounted = false }
   }, [])
 
   // Load progres sesi (HPP, Packing, Iklan, Status Lunas) dari localStorage saat mount
@@ -114,12 +199,6 @@ export default function Home() {
         }
       }
     } catch {}
-  }, [])
-
-  // Selalu mulai dari paling atas halaman saat buka awal atau refresh (Ctrl+R / F5)
-  useEffect(() => {
-    window.history.replaceState(null, '', window.location.pathname)
-    window.scrollTo({ top: 0, behavior: 'instant' })
   }, [])
 
   // Simpan history ke localStorage setiap kali berubah
@@ -542,6 +621,24 @@ export default function Home() {
 
   return (
     <>
+      {/* Mode Maintenance — kunci area upload jika aktif */}
+      {adminConfig.maintenanceMode && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 text-white">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.739-3.018l-.408-1.017c-.465-1.17-1.584-1.794-2.597-1.425l-1.145.416a3.13 3.13 0 01-3.424-.237l-.745-1.195a.75.75 0 01.282-1.002l.745-.745c.121-.121.182-.291.218-.477l.004-.225c.002-.095.015-.19.015-.288V10.5c0-1.121-.897-2.018-2-2.182a2 2 0 00-.281-.058c-.21-.04-.432-.065-.65-.065L6.05 4.75c-.218 0-.44.025-.65.065a2 2 0 00-.281.058c-1.103.164-1.997 1.062-1.997 2.182v7.35c0 .098.013.193.015.288l.004.225c.036.186.097.356.218.477l.745.745c.097.097.146.266.282.347l.745 1.195c.227.364.487.722.795 1.042l1.145-.416c1.013-.369 2.132-.255 2.597 1.425l.408 1.017c-.763 1.351-.198 3.018 1.739 3.018z" /></svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Situs Dalam Pemeliharaan</h2>
+            <p className="text-slate-300 mb-6">
+              Website AuditToko AI sedang dalam mode pemeliharaan. Silakan coba lagi nanti.
+            </p>
+            <p className="text-sm text-slate-400">
+              Admin: {adminConfig.brandName || 'AuditToko AI'}
+            </p>
+          </div>
+        </div>
+      )}
+
       <Header
         view={view}
         historyCount={auditHistory.length}
@@ -550,6 +647,7 @@ export default function Home() {
         onHargaClick={() => setHargaOpen(true)}
         onBackToHome={handleBackToHome}
         onLogoClick={handleBerandaClick}
+        adminConfig={adminConfig}
       />
 
       {/* Popup Loading Upload (dikelola di page.js agar tahan selama transisi view) */}
@@ -581,12 +679,12 @@ export default function Home() {
 
       {view === 'home' ? (
         <>
-          <main className="pt-24 pb-12">
+          <main className="pt-8 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-10">
-                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-4">
-                  AuditToko AI
-                </h1>
+                <div className="flex justify-center mb-4">
+                  <BrandLogo className="" height={40} width={40} />
+                </div>
                 <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
                   Audit profit, deteksi produk rugi, dan rekomendasi harga jual baru otomatis
                   dari laporan penjualan Shopee, TikTok Shop,
@@ -604,6 +702,7 @@ export default function Home() {
           </main>
 
           <Footer
+            brandName={adminConfig?.brandName || 'AuditToko AI'}
             onPrivacyClick={() => setPrivacyModalOpen(true)}
             onDownloadGuideClick={() => setDownloadGuideModalOpen(true)}
             onBerandaClick={handleBerandaClick}
@@ -615,7 +714,7 @@ export default function Home() {
         </>
       ) : (
         <>
-          <main className="pt-4 pb-12 min-h-[calc(100vh-200px)]">
+          <main className={`${adminConfig?.bannerEnabled === true ? 'pt-1' : 'pt-2'} pb-12`}>
             <ResultsSection
               summary={analysisResult?.summary}
               products={analysisResult?.products || []}
@@ -643,6 +742,16 @@ export default function Home() {
               historyId={activeHistoryId}
               adCost={adCost}
               onAdCostChange={setAdCost}
+              adminConfig={adminConfig}
+              onRecordEvent={async (type, payload) => {
+                try {
+                  await fetch('/api/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'recordEvent', type, payload }),
+                  })
+                } catch {}
+              }}
             />
           </main>
         </>)
@@ -837,16 +946,18 @@ export default function Home() {
             <p className="text-amber-800 text-sm font-medium mb-6">
               ⏰ Progres input HPP & status laporan tersimpan otomatis selama 24 jam sejak mulai audit. Riwayat akan terhapus otomatis setelah 24 jam.
             </p>
-            <AuditHistoryList
-              history={auditHistory}
-              onLoadHistory={(id) => {
-                setShowHistoryModal(false)
-                handleLoadHistory(id)
-              }}
-              onDeleteHistory={handleDeleteHistory}
-              onDeleteSelectedHistory={handleDeleteSelectedHistory}
-              onClearAllHistory={handleClearAllHistory}
-            />
+            <div className="max-h-[340px] overflow-y-auto pr-1 space-y-2.5 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+              <AuditHistoryList
+                history={auditHistory}
+                onLoadHistory={(id) => {
+                  setShowHistoryModal(false)
+                  handleLoadHistory(id)
+                }}
+                onDeleteHistory={handleDeleteHistory}
+                onDeleteSelectedHistory={handleDeleteSelectedHistory}
+                onClearAllHistory={handleClearAllHistory}
+              />
+            </div>
             {auditHistory.length === 0 && (
               <p className="text-sm text-slate-500 text-center mt-8">Belum ada riwayat audit di perangkat ini.</p>
             )}

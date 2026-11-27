@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
+import { adminStore } from '../../lib/adminStore'
 
-const SYSTEM_INSTRUCTION = `
+const BASE_SYSTEM_INSTRUCTION = `
 Anda adalah Asisten Khusus AuditToko AI yang ramah, sopan, dan profesional. Anda hanya boleh membantu seputar penggunaan website AuditToko AI dan audit laporan penjualan marketplace Indonesia.
 
 WAJIB: Setiap balasan yang Anda berikan HARUS menggunakan sapaan ramah "Kak" atau "Kakak" secara natural. Contoh: "Halo Kak...", "Tentu Kak, untuk mengunduh laporan...", "Mohon maaf Kak...", "Silakan Kak...". Jangan lupa menyapa Kak/Kakak di awal, tengah, atau akhir setiap kalimat balasan.
@@ -24,9 +25,25 @@ ATURAN TAMBAHAN:
 
 export async function POST(req) {
   try {
-    const { messages, userMessage } = await req.json()
+    const { messages, userMessage, customKnowledge } = await req.json()
 
     const apiKey = process.env.GEMINI_API_KEY
+
+    // Ambil custom knowledge dari konfigurasi admin jika ada
+    let adminKnowledge = ''
+    try {
+      const config = await adminStore.getConfig()
+      if (config?.aiCustomKnowledge) {
+        adminKnowledge = config.aiCustomKnowledge
+      }
+    } catch {}
+
+    // Gabungkan custom knowledge dari body dan dari admin config
+    const combinedKnowledge = [customKnowledge, adminKnowledge].filter(Boolean).join('\n\n')
+
+    const SYSTEM_INSTRUCTION = combinedKnowledge
+      ? BASE_SYSTEM_INSTRUCTION + `\n\nPENGETAHUAN TAMBAHAN DARI ADMIN:\n${combinedKnowledge}\n`
+      : BASE_SYSTEM_INSTRUCTION
 
     // Jika API key belum diisi (lokal), balas dengan cadangan ramah tanpa error
     if (!apiKey) {

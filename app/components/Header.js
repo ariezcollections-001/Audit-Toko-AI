@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, DollarSign, ArrowRight, Clock } from 'lucide-react'
+import { Menu, X, ArrowRight, Clock } from 'lucide-react'
+import BrandLogo from './BrandLogo'
 
 export default function Header({
   view = 'home',
@@ -12,24 +13,27 @@ export default function Header({
   onHargaClick,
   onBackToHome,
   onLogoClick,
+  adminConfig,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const isHome = view === 'home'
+  const bannerEnabled = adminConfig?.bannerEnabled === true
+  const bannerType = adminConfig?.bannerType || 'text'
+  const bannerText = adminConfig?.bannerText || ''
+  const bannerColor = adminConfig?.bannerColor || 'blue'
+  const bannerImageUrl = adminConfig?.bannerImageUrl || ''
+  const bannerLink = adminConfig?.bannerLink || ''
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50">
+    <div className="sticky top-0 z-40 w-full bg-white shadow-sm">
+      <header className="w-full">
       <div className="border-b border-slate-100/80 bg-white/80 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
             <div className="flex items-center gap-3 cursor-pointer select-none" onClick={onLogoClick}>
-              <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-sm">
-                <DollarSign className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-slate-900 tracking-tight">
-                AuditToko <span className="text-slate-500">AI</span>
-              </span>
+              <BrandLogo className="" height={32} width={32} />
             </div>
 
             {/* Desktop Navigation */}
@@ -172,5 +176,119 @@ export default function Header({
         </div>
       )}
     </header>
+
+      {/* Banner Promo — baris 2, tepat di bawah navigasi */}
+      {bannerEnabled && (
+        <div style={{ width: '100%' }}>
+          <style>
+            {`
+              @keyframes bannerShimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+              }
+              @keyframes bannerGlow {
+                0%, 100% { box-shadow: 0 0 25px rgba(255,255,255,0.45); }
+                50% { box-shadow: 0 0 55px rgba(255,255,255,0.85); }
+              }
+              .banner-shine {
+                position: relative;
+                overflow: hidden;
+              }
+              .banner-shine::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: -140%;
+                width: 70%;
+                height: 100%;
+                background: linear-gradient(
+                  90deg,
+                  transparent 0%,
+                  rgba(255,255,255,0.7) 50%,
+                  transparent 100%
+                );
+                transform: skewX(-25deg);
+                animation: bannerShimmer 2s infinite;
+              }
+            `}
+          </style>
+          <div
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              animation: 'bannerGlow 2.5s ease-in-out infinite',
+              boxShadow:
+                bannerColor === 'blue'
+                  ? '0 0 25px rgba(59,130,246,0.45)'
+                  : bannerColor === 'emerald'
+                    ? '0 0 25px rgba(16,185,129,0.45)'
+                    : bannerColor === 'amber'
+                      ? '0 0 25px rgba(245,158,11,0.45)'
+                      : '0 0 25px rgba(239,68,68,0.45)',
+            }}
+            className={`${
+              bannerType === 'image' && bannerImageUrl
+                ? 'px-4 pt-3 pb-1'
+                : 'px-4 py-3'
+            }`}>
+            {/* Shimmer overlay */}
+            <div
+              className="absolute inset-0 -z-10"
+              style={{
+                background: `linear-gradient(
+                  90deg,
+                  transparent 0%,
+                  rgba(255,255,255,0.55) 50%,
+                  transparent 100%
+                )`,
+                transform: 'skewX(-25deg) translateX(-140%)',
+                animation: 'bannerShimmer 2s linear infinite',
+              }}
+            />
+            {bannerType === 'image' && bannerImageUrl ? (
+              bannerLink ? (
+                <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
+                  <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
+                </a>
+              ) : (
+                <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
+              )
+            ) : bannerText ? (
+              bannerLink ? (
+                <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
+                  <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${
+                    bannerColor === 'blue' ? 'bg-blue-600' :
+                    bannerColor === 'emerald' ? 'bg-emerald-600' :
+                    bannerColor === 'amber' ? 'bg-amber-600' : 'bg-red-600'
+                  }`}>
+                    {bannerText}
+                  </div>
+                </a>
+              ) : (
+                <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${
+                  bannerColor === 'blue' ? 'bg-blue-600' :
+                  bannerColor === 'emerald' ? 'bg-emerald-600' :
+                  bannerColor === 'amber' ? 'bg-amber-600' : 'bg-red-600'
+                }`}>
+                  {bannerText}
+                </div>
+              )
+            ) : null}
+          </div>
+          <style>
+            {`
+              @keyframes bannerGlow {
+                0%, 100% { box-shadow: 0 0 25px rgba(255,255,255,0.45); }
+                50% { box-shadow: 0 0 55px rgba(255,255,255,0.85); }
+              }
+              @keyframes bannerShimmer {
+                0% { transform: skewX(-25deg) translateX(-140%); }
+                100% { transform: skewX(-25deg) translateX(260%); }
+              }
+            `}
+          </style>
+        </div>
+      )}
+    </div>
   )
 }

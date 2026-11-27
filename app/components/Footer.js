@@ -1,5 +1,8 @@
 'use client'
+import { DollarSign } from 'lucide-react'
+
 export default function Footer({
+  brandName = 'AuditToko AI',
   onPrivacyClick,
   onDownloadGuideClick,
   onBerandaClick,
@@ -13,15 +16,11 @@ export default function Footer({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-3 mb-4" onClick={onLogoClick}>
-              <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402 2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <div className="flex items-center justify-start gap-2 w-fit mb-4" onClick={onLogoClick}>
+              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                <DollarSign className="w-5 h-5 text-slate-900" />
               </div>
-              <span className="font-bold text-white text-lg tracking-tight">
-                AuditToko <span className="text-slate-400">AI</span>
-              </span>
+              <span className="text-white font-bold text-lg">{brandName}</span>
             </div>
             <p className="text-sm text-slate-500 max-w-xs">
               Platform audit laporan penjualan &amp; kalkulator harga jual otomatis untuk penjual marketplace Indonesia.

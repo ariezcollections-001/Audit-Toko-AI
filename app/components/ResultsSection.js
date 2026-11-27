@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   DollarSign,
   TrendingDown,
@@ -47,6 +47,8 @@ export default function ResultsSection({
   historyId,
   adCost = 0,
   onAdCostChange,
+  adminConfig,
+  onRecordEvent,
 }) {
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [paymentLoading, setPaymentLoading] = useState(false)
@@ -60,6 +62,7 @@ export default function ResultsSection({
   const [packingCostPerProduct, setPackingCostPerProduct] = useState({})
   const [adCostPeriod, setAdCostPeriod] = useState(adCost)
   const [isPriceTableZoomed, setIsPriceTableZoomed] = useState(false)
+  const netProfitSectionRef = useRef(null)
 
   // Sinkronkan adCostPeriod dengan prop adCost dari page.js agar
   // perubahan biaya iklan langsung tercermin di perhitungan Langkah 3
@@ -76,14 +79,7 @@ export default function ResultsSection({
   }, [isPriceTableZoomed])
 
   // Gulir otomatis ke "Ringkasan Laba Bersih Toko" setelah pembayaran QRIS berhasil
-  useEffect(() => {
-    if (paymentSuccess) {
-      const el = document.getElementById('ringkasan-laba-bersih')
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }
-  }, [paymentSuccess])
+
 
   const handlePayment = () => {
     setPaymentLoading(true)
@@ -92,8 +88,14 @@ export default function ResultsSection({
       setPaid(true)
       setUnlocked(true)
       setPaymentSuccess(true)
+      setTimeout(() => {
+        netProfitSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 150)
       if (onUpdateHistory && historyId) {
         onUpdateHistory(historyId, { isPaid: true, paid: true })
+      }
+      if (onRecordEvent) {
+        onRecordEvent('unlocks', { method: 'QRIS', amount: adminConfig?.auditPrice ?? 15000 })
       }
     }, 1500)
   }
@@ -132,13 +134,25 @@ export default function ResultsSection({
     URL.revokeObjectURL(url)
   }
 
-  // --- Voucher / Promo Code (1x pakai, case-sensitive, dari .env.local) ---
-  const VOUCHER_CODES_DEFAULT = 'AuditVIP01,AuditVIP02,AuditVIP03,PromoToko99'
-  const voucherCodesRaw =
-    typeof process.env.NEXT_PUBLIC_VOUCHER_CODES === 'string'
-      ? process.env.NEXT_PUBLIC_VOUCHER_CODES
-      : VOUCHER_CODES_DEFAULT
-  const voucherCodes = voucherCodesRaw.split(',').map((c) => c.trim()).filter(Boolean)
+  // --- Voucher / Promo Code — divalidasi dari konfigurasi admin (/api/admin) ---
+  const [adminVouchers, setAdminVouchers] = useState({
+    masterCode: 'ADMIN-MASTER-2026',
+    oneTimeCodes: [],
+  })
+
+  useEffect(() => {
+    // Muat voucher dari admin config saat component mount
+    const loadVouchers = async () => {
+      try {
+        const res = await fetch('/api/admin?action=vouchers')
+        if (res.ok) {
+          const data = await res.json()
+          setAdminVouchers(data)
+        }
+      } catch {}
+    }
+    loadVouchers()
+  }, [])
 
   const getUsedVouchers = () => {
     try {
@@ -157,7 +171,7 @@ export default function ResultsSection({
     }
   }
 
-  const handleApplyVoucher = () => {
+  const handleApplyVoucher = async () => {
     const code = voucherCode.trim()
     if (!code) return
 
@@ -169,23 +183,63 @@ export default function ResultsSection({
       return
     }
 
-    if (voucherCodes.includes(code)) {
+    // Validasi Kode Master (unlimited) dari admin config
+    if (code === adminVouchers.masterCode) {
       saveUsedVoucher(code)
       setUnlocked(true)
-      setVoucherMessage('Kode Voucher Berhasil Diterapkan — Akses Penuh Terbuka!')
+      setPaid(true)
+      setVoucherMessage('Kode Master Berhasil Diterapkan — Akses Penuh Terbuka!')
       setVoucherMessageType('success')
       if (onUpdateHistory && historyId) {
         onUpdateHistory(historyId, { isPaid: true, paid: true })
       }
-      // Gulir ke Ringkasan Laba Bersih Toko setelah voucher berhasil
-      const el = document.getElementById('ringkasan-laba-bersih')
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (onRecordEvent) {
+        onRecordEvent('unlocks', { method: 'MASTER_VOUCHER', codeUsed: code })
       }
-    } else {
-      setVoucherMessage('Kode voucher tidak valid (pastikan huruf besar, huruf kecil, dan angka sesuai).')
-      setVoucherMessageType('error')
+      setTimeout(() => {
+        netProfitSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 150)
+      return
     }
+
+    // Validasi Voucher 1x Pakai dari admin config
+    if (adminVouchers.oneTimeCodes.includes(code)) {
+      // Consume voucher — otomatis hangus dari daftar admin
+      try {
+        await fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'consumeVoucher', code }),
+        })
+      } catch {}
+
+      saveUsedVoucher(code)
+      setUnlocked(true)
+      setPaid(true)
+      setVoucherMessage('Voucher 1x Pakai Berhasil Ditebus — Akses Penuh Terbuka!')
+      setVoucherMessageType('success')
+      if (onUpdateHistory && historyId) {
+        onUpdateHistory(historyId, { isPaid: true, paid: true })
+      }
+      if (onRecordEvent) {
+        onRecordEvent('unlocks', { method: 'ONETIME_VOUCHER', codeUsed: code })
+      }
+      // Muat ulang daftar voucher setelah consume
+      try {
+        const res = await fetch('/api/admin?action=vouchers')
+        if (res.ok) {
+          const data = await res.json()
+          setAdminVouchers(data)
+        }
+      } catch {}
+      setTimeout(() => {
+        netProfitSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 150)
+      return
+    }
+
+    setVoucherMessage('Kode voucher tidak valid (pastikan huruf besar, huruf kecil, dan angka sesuai).')
+    setVoucherMessageType('error')
   }
 
 const safePackingCost = isFinite(packingCost) ? packingCost : 0
@@ -284,12 +338,12 @@ const totalHpp = summary?.totalHpp || 0
 
 
   return (
-    <section className="py-16 md:py-24 bg-gray-50">
+    <section className="md:py-24 bg-gray-50">
       {onBackToHome && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-2">
           <button
             onClick={onBackToHome}
-            className="inline-flex items-center gap-2 text-slate-600 font-medium hover:text-slate-900 transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-slate-600 font-medium hover:text-slate-900 transition-colors mt-0 mb-3"
           >
             <ArrowRight className="w-4 h-4" rotate="-90" />
             Kembali ke Beranda / Upload File Lain
@@ -454,7 +508,7 @@ const totalHpp = summary?.totalHpp || 0
               <h3 className="text-2xl font-bold tracking-tight mb-2">Buka Laporan Lengkap</h3>
               <p className="text-slate-300 mb-8">
                 Input Modal & Packing sudah tersedia. Untuk melihat Ringkasan Laba Bersih Toko
-                dan semua fitur analisis lanjutan, silakan selesaikan pembayaran QRIS sebesar Rp 15.000.
+                dan semua fitur analisis lanjutan, silakan selesaikan pembayaran QRIS sebesar {formatRupiah(adminConfig?.auditPrice ?? 15000)}.
               </p>
 
               <div className="mt-6 mb-6">
@@ -487,7 +541,7 @@ const totalHpp = summary?.totalHpp || 0
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
-                Buka Laporan Lengkap via QRIS — Rp 15.000
+                Buka Laporan Lengkap via QRIS — {formatRupiah(adminConfig?.auditPrice ?? 15000)}
               </button>
               <p className="text-xs text-slate-400 mt-4 text-center max-w-xs mx-auto">
                 Tarif sekali bayar per 1 laporan audit — tanpa biaya langganan bulanan.
@@ -527,7 +581,7 @@ const totalHpp = summary?.totalHpp || 0
             {/* ============================================================
                LANGKAH 3 — RINGKASAN LABA BERSIH TOKO (Hanya setelah bayar)
                ============================================================ */}
-            <div className="text-center mb-6">
+            <div className={`text-center mb-6 ${adminConfig?.bannerEnabled === true ? 'scroll-mt-40' : 'scroll-mt-24'}`} ref={netProfitSectionRef}>
               <h2 id="ringkasan-laba-bersih" className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
                 Ringkasan Laba Bersih Toko
               </h2>
@@ -591,7 +645,7 @@ const totalHpp = summary?.totalHpp || 0
           </>
         ) : null}
 
-        {isPaid || isAlreadyPaid ? (
+        {unlocked || isPaid || isAlreadyPaid ? (
           <>
             {!isPriceTableZoomed && (
               <div className="text-center mb-6">
@@ -892,7 +946,7 @@ const totalHpp = summary?.totalHpp || 0
                   }}
                   className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
                 >
-                  Ya, Data Sudah Cocok — Lanjut Bayar QRIS Rp 15.000
+                  Ya, Data Sudah Cocok — Lanjut Bayar QRIS {formatRupiah(adminConfig?.auditPrice ?? 15000)}
                 </button>
                 <button
                   onClick={() => setShowPaymentConfirm(false)}

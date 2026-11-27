@@ -17,11 +17,26 @@ export default function UploadSection({
   onFileProcessed,
   onHppFileUpload,
   detectedFormat,
+  onRecordEvent,
 }) {
   const [dragActive, setDragActive] = useState(false)
   const [fileName, setFileName] = useState(null)
   const [error, setError] = useState(null)
   const [mappingInfo, setMappingInfo] = useState(null)
+
+  // Reset semua state upload saat komponen mount/refresh agar tidak ada sisa state
+  // yang menyebabkan tombol unggah tidak responsif pada klik pertama.
+  useEffect(() => {
+    setIsProcessing(false)
+    setError(null)
+    setFileName(null)
+    setMappingInfo(null)
+    setShowManualMapping(false)
+    setUnmappedHeaders([])
+    setManualMapping({})
+    setPendingRecords(null)
+    setPendingHeaders(null)
+  }, [])
   // Fallback Manual Mapping state
   const [showManualMapping, setShowManualMapping] = useState(false)
   const [unmappedHeaders, setUnmappedHeaders] = useState([])
@@ -91,6 +106,15 @@ export default function UploadSection({
     setManualMapping({})
     setPendingRecords(null)
     setPendingHeaders(null)
+    
+    // Catat kolom yang tidak dikenali ke admin analytics
+    if (onRecordEvent) {
+      const unmapped = pendingHeaders.filter(h => !Object.values(mergedMapping).includes(h))
+      if (unmapped.length > 0) {
+        onRecordEvent('unrecognizedColumns', { headers: unmapped, fileName: fileName || 'file' })
+      }
+    }
+    
     await onFileProcessed(pendingRecords, mergedMapping, pendingHeaders, fileName || 'file', {})
   }
 
@@ -127,8 +151,15 @@ export default function UploadSection({
   const handleDrop = async (e) => {
     e.preventDefault()
     setDragActive(false)
+    setIsProcessing(true)
+    setError(null)
     const file = e.dataTransfer.files[0]
-    if (file) await processFile(file)
+    if (file) {
+      await processFile(file)
+      setIsProcessing(false)
+    } else {
+      setIsProcessing(false)
+    }
   }
 
   const handleDragOver = (e) => {
@@ -198,6 +229,12 @@ export default function UploadSection({
       )
 
       setMappingInfo({ headers, mapping, mappedCount: Object.keys(mapping).length })
+      
+      // Catat event upload ke admin analytics
+      if (onRecordEvent) {
+        onRecordEvent('uploads', { fileName: file.name, headers: headers.length })
+      }
+      
       await onFileProcessed(records, mapping, headers, file.name, requiredColumnConfidence)
     } catch (err) {
       // Jika page.js melempar sinyal zero-safety (total omzet/dana cair nol),
@@ -213,6 +250,7 @@ export default function UploadSection({
         return
       }
       setError(err.message || NON_EXCEL_WARNING_MESSAGE)
+      setIsProcessing(false)
     }
   }
 
@@ -294,9 +332,6 @@ export default function UploadSection({
                   type="file"
                   accept=".xlsx,.csv"
                   className="file-input-hidden"
-                  onClick={(e) => {
-                    e.target.value = ''
-                  }}
                   onChange={handleFile}
                 />
               </label>
