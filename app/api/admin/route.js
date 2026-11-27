@@ -1,15 +1,39 @@
 import { NextResponse } from 'next/server'
 import { adminStore } from '../../lib/adminStore'
+import { limiters } from '../../lib/rateLimit'
 
+/* ============================================================================
+   HELPER: ambil IP klien dari request
+   ============================================================================ */
+function getClientIp(req) {
+  const forwarded = req.headers.get('x-forwarded-for')
+  return forwarded ? forwarded.split(',')[0].trim() : 'unknown'
+}
+
+/* ============================================================================
+   GET /api/admin — konfigurasi publik & data admin
+   ============================================================================ */
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url)
     const action = searchParams.get('action') || 'config'
     const isPublic = searchParams.get('public') === '1'
 
+    // Daftar kolom yang BOLEH dikirim ke publik (public=1)
+    const PUBLIC_CONFIG_FIELDS = [
+      'brandName', 'brandLogoUrl', 'auditPrice', 'maintenanceMode',
+      'bannerEnabled', 'bannerType', 'bannerText', 'bannerColor',
+      'bannerTextMotion', 'bannerEffect', 'bannerImageUrl', 'bannerLink',
+      'aiChatEnabled',
+    ]
+
     if (action === 'config') {
       const config = await adminStore.getConfig()
-      const { adminPassword, ...publicConfig } = config
+      // Publik: HANYA field yang aman, DILARANG KERAS menyertakan adminPassword
+      const publicConfig = {}
+      for (const f of PUBLIC_CONFIG_FIELDS) {
+        if (config[f] !== undefined) publicConfig[f] = config[f]
+      }
       return NextResponse.json(isPublic ? publicConfig : config)
     }
     if (action === 'vouchers') return NextResponse.json(await adminStore.getVouchers())
@@ -19,8 +43,18 @@ export async function GET(req) {
     if (action === 'unrecognizedColumns') return NextResponse.json(await adminStore.getUnrecognizedColumns())
     if (action === 'full') {
       const store = await adminStore.getFullStore()
-      const { adminPassword, ...publicConfig } = store.config
-      return NextResponse.json(isPublic ? { ...store, config: publicConfig } : { ...store, config: publicConfig })
+      // Publik: hapus semua data sensitif dari config, transaksi, dan tiket dukungan
+      const safeStore = { ...store }
+      const safeConfig = {}
+      for (const f of PUBLIC_CONFIG_FIELDS) {
+        if (store.config[f] !== undefined) safeConfig[f] = store.config[f]
+      }
+      safeStore.config = safeConfig
+      // Hapus daftar transaksi dan tiket dukungan dari respons publik
+      safeStore.transactions = []
+      safeStore.supportTickets = []
+      safeStore.unrecognizedColumns = []
+      return NextResponse.json(isPublic ? safeStore : { ...store, config: safeConfig })
     }
     return NextResponse.json({ error: 'Aksi tidak valid' }, { status: 400 })
   } catch (err) {
@@ -39,6 +73,14 @@ export async function POST(req) {
 
     /* ---------- LOGIN ---------- */
     if (action === 'login') {
+      // Rate limit: maksimal 5 gagal per 15 menit per IP
+      const limit = limiters.adminLogin(req)
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { error: 'Terlalu banyak percobaan login. Silakan coba lagi nanti.' },
+          { status: 429 }
+        )
+      }
       const { password } = body
       const config = await adminStore.getConfig()
       if (password === config.adminPassword) {
@@ -53,6 +95,15 @@ export async function POST(req) {
       const config = await adminStore.getConfig()
       if (password !== config.adminPassword) {
         return NextResponse.json({ error: 'Password admin diperlukan' }, { status: 401 })
+      }
+      // Validasi bannerLink: hanya terima URL http:// atau https://
+      if (updates.bannerLink !== undefined && updates.bannerLink !== '') {
+        if (!/^https?:\/\//i.test(String(updates.bannerLink))) {
+          return NextResponse.json(
+            { error: 'bannerLink harus diawali dengan http:// atau https://' },
+            { status: 400 }
+          )
+        }
       }
       const updated = await adminStore.updateConfig(updates)
       return NextResponse.json({ success: true, config: updated })
@@ -79,8 +130,16 @@ export async function POST(req) {
       return NextResponse.json({ success: true, entry })
     }
 
-    /* ---------- VOUCHER: consume one-time code ---------- */
-    if (action === 'consumeVoucher') {
+    /* ---------- VOUCHER: consume one-time code (redeem) ---------- */
+    if (action === 'consumeVoucher' || action === 'redeem_voucher') {
+      // Rate limit: maksimal 10 percobaan per menit per IP
+      const limit = limiters.voucherRedeem(req)
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { error: 'Terlalu banyak percobaan redeem voucher. Silakan coba lagi nanti.' },
+          { status: 429 }
+        )
+      }
       const { code } = body
       const consumed = await adminStore.consumeOneTimeCode(code)
       if (consumed) {

@@ -16,10 +16,12 @@ build/
 dist/
 
 # Environment files (local only — jangan pernah diunggah ke GitHub)
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env*.local
 
 # IDE / Editor
 .idea/

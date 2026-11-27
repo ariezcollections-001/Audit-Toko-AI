@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { adminStore } from '../../lib/adminStore'
+import { limiters } from '../../lib/rateLimit'
 
 const BASE_SYSTEM_INSTRUCTION = `
 Anda adalah Asisten Khusus AuditToko AI yang ramah, sopan, dan profesional. Anda hanya boleh membantu seputar penggunaan website AuditToko AI dan audit laporan penjualan marketplace Indonesia.
@@ -25,6 +26,15 @@ ATURAN TAMBAHAN:
 
 export async function POST(req) {
   try {
+    // Rate limit: maksimal 15 permintaan per menit per IP
+    const limit = limiters.aiChat(req)
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { reply: 'Mohon maaf Kak, terlalu banyak permintaan ke asisten AI. Silakan coba lagi nanti ya Kak.' },
+        { status: 429 }
+      )
+    }
+
     const { messages, userMessage, customKnowledge } = await req.json()
 
     const apiKey = process.env.GEMINI_API_KEY

@@ -1132,6 +1132,20 @@ function isRowTotalPriceColumn(colName) {
   return ROW_TOTAL_KEYWORDS.some(kw => h === kw || h.includes(kw) || kw.includes(h))
 }
 
+/** 
+ * Klasifikasi status pesanan berdasarkan teks status.
+ * Mengembalikan: 'cancelled' | 'returned' | 'valid'
+ */
+function classifyOrderStatus(statusStr) {
+  if (!statusStr) return 'valid'
+  const s = String(statusStr).toLowerCase()
+  const cancelledWords = ['batal', 'dibatalkan', 'cancel', 'cancelled', 'void', 'failed', 'gagal', 'expired']
+  const returnedWords = ['retur', 'return', 'returned', 'pengembalian', 'refund', 'refunded', 'dikembalikan', 'komplain', 'dispute']
+  if (cancelledWords.some(w => s.includes(w))) return 'cancelled'
+  if (returnedWords.some(w => s.includes(w))) return 'returned'
+  return 'valid'
+}
+
 export function calculateAnalysis(rows, mapping, hppInputs = {}, marketplace = 'auto', targetProfit = DEFAULT_TARGET_PROFIT, packingCost = 0, adCost = 0) {
   const products = {}
   const claims = []
@@ -1325,7 +1339,13 @@ initShopeeDeductionColumns()
   // Track orderId yang sudah memiliki settlementAmount terhitung untuk mencegah duplikasi
   const settledOrderIds = new Set()
 
-  for (const row of rows) {
+  // Track orderId yang sudah memiliki grossRevenue (omzet kotor) terhitung
+  // pada level order (untuk kolom total baris yang nilainya diulang pada setiap
+  // baris item pesanan multi-item). Mencegah penjumlahan ganda order total.
+  const orderGrossCommitted = new Set()
+
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const row = rows[rowIdx]
     const orderId = getStr(row, 'orderId', ['No. Pesanan', 'order id', 'invoice'])
     const productNameRaw = getStr(row, 'productName', ['Nama Produk', 'product name', 'produk']) || ''
     const sku = getStr(row, 'sku', ['SKU', 'sku', 'kode produk']) || ''
@@ -1379,7 +1399,7 @@ initShopeeDeductionColumns()
     const safePlatformComm = isFinite(platformComm) ? platformComm : 0
     const safeAffiliateComm = isFinite(affiliateComm) ? affiliateComm : 0
     const safeProductPrice = isFinite(productPrice) ? productPrice : 0
-    const safeQty = isFinite(qty) && qty > 0 ? qty : 1
+    const safeQty = isFinite(qty) && qty > 0 ? qty : 0
     const safeEstShipping = isFinite(estShipping) ? estShipping : 0
     const safeBuyerShipping = isFinite(buyerShipping) ? buyerShipping : 0
 
@@ -1461,6 +1481,17 @@ initShopeeDeductionColumns()
       pricePerUnit = safeSettlement / units
     }
 
+    // Order-level dedup untuk grossRevenue (total price columns)
+    // Jika kolom merupakan total baris dan orderId sudah pernah di-hitung pada
+    // baris item pertama, jangan jumlahkan ulang order total pada baris berikutnya
+    if (isTotalPriceCol && orderId) {
+      if (orderGrossCommitted.has(orderId)) {
+        rowGrossRevenue = 0
+      } else {
+        orderGrossCommitted.add(orderId)
+      }
+    }
+
     // --- Deteksi baris "Total / Ringkasan / Grand Total" di bawah tabel ---
     // Hanya buang baris yang BENAR-BENAR ringkasan (tidak punya No. Pesanan atau
     // No. Pesanan-nya sendiri mengandung kata total). Jangan buang baris transaksi
@@ -1499,15 +1530,19 @@ initShopeeDeductionColumns()
       })
     }
 
-    // Deteksi status pesanan retur/batal dari kolom Status Pesanan
-    const orderStatus = getStr(row, 'orderStatus', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status'])
-    const isReturnStatus = /retur|pengembalian|batal|cancel/i.test(orderStatus)
+    // Deteksi status pesanan dari kolom Status / Status Settlement
+    // Pastikan kolom status (termasuk 'Status Settlement') selalu dipetakan ke field 'status'
+    const orderStatus = getStr(row, 'status', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status', 'Status Settlement', 'status settlement'])
+    const statusClass = classifyOrderStatus(orderStatus)
 
-    // Kumpulkan detail pesanan retur untuk transparansi biaya hangus
-    // Deteksi berdasarkan nominal refund > 0 ATAU status pesanan mengandung kata retur/pengembalian/batal
-    // Tracking kolom yang sudah diproses agar tidak ada kolom yang dihitung 2x oleh dua deduction key berbeda
+    // Status BATAL → abaikan sepenuhnya: tidak dihitung omzet, dana cair, atau unit sukses
+    if (statusClass === 'cancelled') {
+      continue
+    }
+
+    // Status RETUR / REFUND → masukkan ke ringkasan Pesanan Retur, bukan produk sukses
     const usedDeductionCols = new Set()
-    if (safeRefund > 0 || isReturnStatus) {
+    if (statusClass === 'returned' || safeRefund > 0) {
       // Biaya hangus = semua potongan operasional pada baris retur (kecuali refund itu sendiri)
       let lostFeeAmount = 0
       deductionColumns.forEach((dc) => {
@@ -1518,6 +1553,12 @@ initShopeeDeductionColumns()
         const val = toNumber(row[actualCol] || 0)
         if (val !== 0) lostFeeAmount += Math.abs(val)
       })
+      // Nominal settlement negatif (mis. -Rp 14.000) = biaya hangus / kembali ongkir
+      // yang ditanggung penjual karena dana pembeli belum cair. Masukkan sebagai
+      // biaya hangus retur agar terakumulasi ke totalRefundCosts / biayaHangusRetur.
+      if (safeSettlement < 0) {
+        lostFeeAmount += Math.abs(safeSettlement)
+      }
       returnedOrders.push({
         orderId: orderId || '-',
         productName: productName,
@@ -1528,10 +1569,12 @@ initShopeeDeductionColumns()
         lostFeeAmount: lostFeeAmount,
       })
       totalRefundCosts += lostFeeAmount
-      totalUnitsReturned += safeQty
+      // totalUnitsReturned akan dihitung secara terpusat dari reduce di bawah,
+      // jangan akumulasi di sini untuk menghindari double-counting
       continue // Jangan masukkan baris retur ke tabel produk sukses — hanya ke returnedOrders
     } else {
-      totalUnitsSuccess += safeQty
+      // totalUnitsSuccess akan dihitung secara terpusat dari reduce di bawah (baris ~1653),
+      // jangan akumulasi di sini untuk menghindari double-counting
     }
 
     // Akumulasi pecahan potongan per kolom asli untuk Langkah 1
@@ -2053,30 +2096,31 @@ export function generateMassUpdateExcel(
   const returnedOrdersCount = Array.isArray(summary?.returnedOrders) ? summary.returnedOrders.length : 0
   const totalUnitsSuccess = Number(summary?.totalUnitsSuccess || 0)
   const totalOrders = Number(summary?.totalOrders || 0)
-  const targetProfitPct = Number(targetProfit || 0)
+  const targetProfitPct = Number(targetProfit || 0) * 100
 
   const totalPengeluaranInternal = totalHpp + totalPackingAll + totalAdCost
   const labaBersih = settlementAmount - totalPengeluaranInternal - totalRefundCosts
   const marginLabaBersih = settlementAmount > 0 ? labaBersih / settlementAmount : 0
 
+  // Total selisih ongkir dari hasil analisis (claims)
+  const totalSelisihOngkir = Number(summary?.claimAmount || 0)
+
   // Proyeksi baru berdasarkan rekomendasi harga .900 (Sheet 1)
+  // Hitung dari array `rows` (data Sheet 1) karena `newPrice` & `estProfit`
+  // hanya tersedia di sana, tidak pada objek `products` asli.
   let estimasiTotalLabaBaru = 0
-  for (const p of products) {
-    const units = Math.max(p.unitsSold || 0, 1)
-    const hppValue = Number(p.hpp) || 0
-    const packingCostVal = Number(packingCostPerProduct[p.id]) || 0
-    const hasHpp = hppValue > 0 || packingCostVal > 0
-    if (hasHpp && p.newPrice && p.newPrice > 0) {
-      estimasiTotalLabaBaru += (Number(p.estProfit) || 0) * units
+  for (const r of rows) {
+    const units = r.unitsSold || 0
+    if (r.hasHpp && r.newPrice && r.newPrice > 0) {
+      estimasiTotalLabaBaru += (r.estProfit || 0) * units
     }
   }
+  // Kurangi beban retur & selisih ongkir agar laba bersih baru akurat
+  estimasiTotalLabaBaru = estimasiTotalLabaBaru - totalRefundCosts - totalSelisihOngkir
   const potensiKenaikanProfit = estimasiTotalLabaBaru - labaBersih
 
   // Pecahan potongan per kolom asli Excel (dari deductionBreakdown)
   const deductionBreakdown = Array.isArray(summary?.deductionBreakdown) ? summary.deductionBreakdown : []
-
-  // Total selisih ongkir dari hasil analisis (claims)
-  const totalSelisihOngkir = Number(summary?.claimAmount || 0)
 
   // --- Gaya tambahan untuk Sheet 2 ---
   const SECTION_FONT = { sz: 11, color: { rgb: 'FFFFFF' }, bold: true }
@@ -2165,7 +2209,7 @@ export function generateMassUpdateExcel(
     { ...VALUE_BOLD_FONT, color: labaValueColor },
     labaFill
   )
-  addRow('Margin Laba Bersih Toko (%)', marginLabaBersih, '0.0%')
+  addRow('Margin Laba Bersih Toko (%)', marginLabaBersih, '0.00%')
 
   // --- 5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU (.900) ---
   addSection('5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU (.900)')
