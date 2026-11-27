@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, ArrowRight, Clock } from 'lucide-react'
+import { Menu, X, ArrowLeft, Clock } from 'lucide-react'
 import BrandLogo from './BrandLogo'
 
 export default function Header({
@@ -65,7 +65,7 @@ export default function Header({
 
   const bannerBadge = (
     <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold border border-white/40 shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{ animation: 'bannerSparkleTwinkle 1.2s ease-in-out infinite alternate' }}>
-      ✨ Promo
+      ✨ AuditToko AI
     </span>
   )
 
@@ -144,7 +144,7 @@ export default function Header({
           <div className="flex justify-between items-center h-12">
             {/* Logo */}
             <div className="flex items-center gap-3 cursor-pointer select-none" onClick={onLogoClick}>
-              <BrandLogo className="" height={32} width={32} />
+              <BrandLogo className="" height={40} width={40} />
             </div>
 
             {/* Desktop Navigation */}
@@ -183,7 +183,7 @@ export default function Header({
                     onClick={onBackToHome}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
                   >
-                    <ArrowRight className="w-4 h-4" rotate="-90" />
+                    <ArrowLeft className="w-4 h-4" />
                     Kembali ke Beranda
                   </button>
                   <button
@@ -259,7 +259,7 @@ export default function Header({
                   onClick={onBackToHome}
                   className="block w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors flex items-center gap-2"
                 >
-                  <ArrowRight className="w-4 h-4" rotate="-90" />
+                  <ArrowLeft className="w-4 h-4" />
                   Kembali ke Beranda
                 </button>
                 <button

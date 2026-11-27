@@ -48,7 +48,7 @@ export default function BrandLogo({ className = '', height = 32, width = 32 }) {
         </div>
       )}
       <span
-        className="font-bold text-slate-900 tracking-tight text-sm select-none truncate max-w-xs"
+        className="font-bold text-slate-900 tracking-tight text-base select-none truncate max-w-xs"
         title={brand.brandName}
       >
         {brand.brandName}

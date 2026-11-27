@@ -710,7 +710,7 @@ export default function Home() {
                 <div className="flex justify-center mb-4">
                   <BrandLogo className="" height={40} width={40} />
                 </div>
-                <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed text-shine">
                   Audit profit, deteksi produk rugi, dan rekomendasi harga jual baru otomatis
                   dari laporan penjualan Shopee, TikTok Shop,
                   Tokopedia, Lazada, &amp; Bukalapak.

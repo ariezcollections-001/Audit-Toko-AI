@@ -300,7 +300,7 @@ export default function ProfitLeakTable({
               <>
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle className="w-5 h-5 text-amber-600" />
-                  <h4 className="font-bold text-amber-700">Analisis Profit & Rekomendasi Harga</h4>
+                  <h4 className="font-bold text-amber-700 text-shine">Analisis Profit & Rekomendasi Harga</h4>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   

@@ -19,7 +19,7 @@ export default function HeroSection() {
             <span className="font-semibold">AuditToko AI</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-tight mb-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-tight mb-4 text-shine">
             Temukan kebocoran profit
             <br className="hidden sm:block" />
             toko Anda dalam 60 detik

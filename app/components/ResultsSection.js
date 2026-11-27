@@ -7,7 +7,7 @@ import {
   AlertTriangle,
   Download,
   Lock,
-  ArrowRight,
+
   ChevronUp,
   ChevronDown,
   Loader2,
@@ -339,23 +339,12 @@ const totalHpp = summary?.totalHpp || 0
 
   return (
     <section className={`bg-gray-50 ${adminConfig?.bannerEnabled === true ? 'md:py-3' : 'md:py-6'}`}>
-      {onBackToHome && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-1">
-          <button
-            onClick={onBackToHome}
-            className="inline-flex items-center gap-2 text-slate-600 font-medium hover:text-slate-900 transition-colors mt-0 mb-1"
-          >
-            <ArrowRight className="w-4 h-4" rotate="-90" />
-            Kembali ke Beranda / Upload File Lain
-          </button>
-        </div>
-      )}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ============================================================
            LANGKAH 1 — RINCIAN DANA & PECAHAN POTONGAN MARKETPLACE
            ============================================================ */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-shine">
             Audit Dana Marketplace
           </h2>
           <p className="text-lg text-gray-600">
@@ -479,7 +468,7 @@ const totalHpp = summary?.totalHpp || 0
            LANGKAH 2 — INPUT MODAL (HPP) & BIAYA PACKING PER PRODUK
            ============================================================ */}
         <div className="text-center mb-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-shine">
             Input Modal & Packing
           </h2>
           <p className="text-lg text-gray-600">
@@ -582,7 +571,7 @@ const totalHpp = summary?.totalHpp || 0
                LANGKAH 3 — RINGKASAN LABA BERSIH TOKO (Hanya setelah bayar)
                ============================================================ */}
             <div className={`text-center mb-6 ${adminConfig?.bannerEnabled === true ? 'scroll-mt-40' : 'scroll-mt-24'}`} ref={netProfitSectionRef}>
-              <h2 id="ringkasan-laba-bersih" className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              <h2 id="ringkasan-laba-bersih" className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-shine">
                 Ringkasan Laba Bersih Toko
               </h2>
               <p className="text-lg text-gray-600">
@@ -649,7 +638,7 @@ const totalHpp = summary?.totalHpp || 0
           <>
             {!isPriceTableZoomed && (
               <div className="text-center mb-6">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-2">
+                <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-2 text-shine">
                   Rekomendasi Harga Jual Baru
                 </h2>
                 <p className="text-sm text-slate-500 text-center max-w-2xl mx-auto mb-6">
@@ -663,7 +652,7 @@ const totalHpp = summary?.totalHpp || 0
               {isPriceTableZoomed ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-slate-900 text-sm">Rekomendasi Harga Jual Baru</h2>
+                    <h2 className="font-bold text-slate-900 text-sm text-shine">Rekomendasi Harga Jual Baru</h2>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg">
@@ -695,7 +684,7 @@ const totalHpp = summary?.totalHpp || 0
                       <button
                         onClick={handleDownloadExcel}
                         disabled={products.length === 0}
-                        className={`px-2 py-1 rounded-md text-xs font-medium transition shadow-sm bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 disabled:opacity-50 ${products.length === 0 ? 'cursor-not-allowed' : ''}`}
+                        className={`px-2 py-1 rounded-md text-xs font-medium transition shadow-sm bg-black text-white border-black hover:bg-gray-800 disabled:opacity-50 ${products.length === 0 ? 'cursor-not-allowed' : ''}`}
                       >
                         <Download className="w-3 h-3" /> Download File
                       </button>
@@ -712,7 +701,7 @@ const totalHpp = summary?.totalHpp || 0
                 <>
                   {/* Header kartu putih — judul + kontrol di bawahnya */}
                   <div className="w-full mb-6">
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-shine">
                       Analisis Profit & Rekomendasi Harga
                     </h2>
 
@@ -779,7 +768,7 @@ const totalHpp = summary?.totalHpp || 0
                 <button
                   onClick={handleDownloadExcel}
                   disabled={products.length === 0}
-                  className={`w-full btn-gradient text-white rounded-2xl font-semibold shadow-premium hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-premium transition-all inline-flex items-center justify-center gap-2 px-6 py-4`}
+                  className={`w-full bg-black text-white rounded-2xl font-semibold shadow-lg hover:shadow-gray-900/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg transition-all inline-flex items-center justify-center gap-2 px-6 py-4`}
                 >
                   <Download className="w-5 h-5" />
                   Download File

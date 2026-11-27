@@ -189,7 +189,7 @@ export default function AiChatWidget({ aiChatEnabled, aiCustomKnowledge }) {
         aria-label={isOpen ? 'Tutup Tanya Asisten AI' : 'Buka Tanya Asisten AI'}
       >
         <MessageCircle className="w-5 h-5" />
-        <span className="hidden sm:inline">Tanya Asisten AI</span>
+        <span className="hidden sm:inline text-shine">Tanya Asisten AI</span>
       </button>
 
       {/* Jendela Chat — posisi fixed di pojok kanan bawah, z-[9999] agar selalu paling atas, TANPA overlay blur full-screen */}
@@ -199,7 +199,7 @@ export default function AiChatWidget({ aiChatEnabled, aiCustomKnowledge }) {
                 {/* Header Chat */}
                 <div className="flex items-center gap-2 px-6 py-4 bg-blue-50 border-b border-blue-100 rounded-t-2xl">
               <Sparkles className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-slate-900 text-sm">Tanya Asisten AI</h3>
+              <h3 className="font-semibold text-slate-900 text-sm text-shine">Tanya Asisten AI</h3>
               <button
                 onClick={() => setIsOpen(false)}
                 className="ml-auto text-slate-400 hover:text-slate-600"
