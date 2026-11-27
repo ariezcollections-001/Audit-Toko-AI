@@ -428,6 +428,7 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
   const [bannerEnabled, setBannerEnabled] = useState(config.bannerEnabled !== false)
   const [bannerType, setBannerType] = useState(config.bannerType || 'text')
   const [bannerColor, setBannerColor] = useState(config.bannerColor || 'blue')
+  const [bannerEffect, setBannerEffect] = useState(config.bannerEffect || 'shimmer')
   const [bannerImagePreview, setBannerImagePreview] = useState(config.bannerImageUrl || '')
   const [aiChatEnabled, setAiChatEnabled] = useState(config.aiChatEnabled !== false)
   const [localAuditPrice, setLocalAuditPrice] = useState(String(config.auditPrice || 15000))
@@ -463,7 +464,7 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
   const handleSaveBanner = async () => {
     if (!adminPassword) { showToast('Masukkan password admin terlebih dahulu.', 'error'); return }
     try {
-      const res = await adminApi('update_config', { bannerEnabled, bannerType, bannerText: localBannerText.trim(), bannerColor, bannerImageUrl: bannerImagePreview, bannerLink: localBannerLink.trim(), password: adminPassword })
+      const res = await adminApi('update_config', { bannerEnabled, bannerType, bannerText: localBannerText.trim(), bannerColor, bannerEffect, bannerImageUrl: bannerImagePreview, bannerLink: localBannerLink.trim(), password: adminPassword })
       if (res.ok) { const d = await res.json(); setConfig(d.config); showToast('Pengaturan banner berhasil disimpan!', 'success'); await fetchData() }
       else { showToast('Gagal menyimpan Banner.', 'error') }
     } catch { showToast('Gagal server.', 'error') }
@@ -548,6 +549,28 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
               </div>
             </div>
           </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700 mb-2 block">Efek Animasi Banner</label>
+            <div className="flex gap-2">
+              {[
+                { id: 'shimmer', label: 'Kilau Cahaya' },
+                { id: 'sparkle', label: 'Gemerlap Bintang' },
+                { id: 'glow', label: 'Denyut Bercahaya' },
+                { id: 'none', label: 'Statis' },
+              ].map((eff) => (
+                <button
+                  key={eff.id}
+                  onClick={() => setBannerEffect(eff.id)}
+                  className={`px-3 py-1.5 rounded text-sm font-medium transition-all border ${bannerEffect === eff.id ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                >
+                  {eff.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Efek visual pada banner pengumuman di halaman depan.</p>
+          </div>
+
           {bannerType === 'text' && (
             <div className="space-y-3">
               <label className="text-sm font-medium text-slate-700">Teks Promo</label>
@@ -700,7 +723,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     // Setelah mount: baca localStorage untuk mempertahankan login saat refresh halaman
-    try { setIsAuthenticated(localStorage.getItem('admin_authenticated') === '1') } catch {}
+    try {
+      setIsAuthenticated(localStorage.getItem('admin_authenticated') === '1')
+      // Restore password admin yang tersimpan agar tombol-tombol kontrol tetap berfungsi setelah refresh
+      const savedPassword = localStorage.getItem('admin_password')
+      if (savedPassword) setAdminPassword(savedPassword)
+    } catch {}
     setIsCheckingAuth(false)
   }, [])
   const [loginPassword, setLoginPassword] = useState('')
@@ -710,6 +738,7 @@ export default function AdminPage() {
     brandName: 'AuditToko AI', brandLogoUrl: '', auditPrice: 15000,
     maintenanceMode: false, bannerEnabled: false, bannerType: 'text',
     bannerText: '', bannerColor: 'blue', bannerImageUrl: '', bannerLink: '',
+    bannerEffect: 'shimmer',
     aiChatEnabled: true, aiCustomKnowledge: '',
   })
   const [vouchers, setVouchers] = useState({ masterCode: 'ADMIN-MASTER-2026', oneTimeCodes: [] })
@@ -760,7 +789,7 @@ export default function AdminPage() {
     try {
       const res = await adminApi('login', { password: loginPassword })
       if (res.ok) {
-        try { localStorage.setItem('admin_authenticated', '1') } catch {}
+        try { localStorage.setItem('admin_authenticated', '1'); localStorage.setItem('admin_password', loginPassword) } catch {}
         setIsAuthenticated(true); setLoginError(''); setAdminPassword(loginPassword); setLoginPassword(''); fetchData()
         show('Login berhasil.', 'success')
       } else {

@@ -24,6 +24,25 @@ export default function Header({
   const bannerColor = adminConfig?.bannerColor || 'blue'
   const bannerImageUrl = adminConfig?.bannerImageUrl || ''
   const bannerLink = adminConfig?.bannerLink || ''
+  const bannerEffect = adminConfig?.bannerEffect || 'shimmer'
+
+  const bannerBaseColor = () => {
+    switch (bannerColor) {
+      case 'emerald': return 'bg-emerald-600'
+      case 'amber': return 'bg-amber-600'
+      case 'red': return 'bg-red-600'
+      default: return 'bg-blue-600'
+    }
+  }
+
+  const bannerGlowShadow = () => {
+    switch (bannerColor) {
+      case 'emerald': return '0 0 25px rgba(16,185,129,0.45)'
+      case 'amber': return '0 0 25px rgba(245,158,11,0.45)'
+      case 'red': return '0 0 25px rgba(239,68,68,0.45)'
+      default: return '0 0 25px rgba(59,130,246,0.45)'
+    }
+  }
 
   return (
     <div className="sticky top-0 z-40 w-full bg-white shadow-sm">
@@ -180,113 +199,135 @@ export default function Header({
       {/* Banner Promo — baris 2, tepat di bawah navigasi */}
       {bannerEnabled && (
         <div style={{ width: '100%' }}>
-          <style>
-            {`
-              @keyframes bannerShimmer {
-                0% { background-position: -200% 0; }
-                100% { background-position: 200% 0; }
-              }
-              @keyframes bannerGlow {
-                0%, 100% { box-shadow: 0 0 25px rgba(255,255,255,0.45); }
-                50% { box-shadow: 0 0 55px rgba(255,255,255,0.85); }
-              }
-              .banner-shine {
-                position: relative;
-                overflow: hidden;
-              }
-              .banner-shine::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: -140%;
-                width: 70%;
-                height: 100%;
-                background: linear-gradient(
-                  90deg,
-                  transparent 0%,
-                  rgba(255,255,255,0.7) 50%,
-                  transparent 100%
-                );
-                transform: skewX(-25deg);
-                animation: bannerShimmer 2s infinite;
-              }
-            `}
-          </style>
           <div
-            style={{
-              position: 'relative',
-              overflow: 'hidden',
-              animation: 'bannerGlow 2.5s ease-in-out infinite',
-              boxShadow:
-                bannerColor === 'blue'
-                  ? '0 0 25px rgba(59,130,246,0.45)'
-                  : bannerColor === 'emerald'
-                    ? '0 0 25px rgba(16,185,129,0.45)'
-                    : bannerColor === 'amber'
-                      ? '0 0 25px rgba(245,158,11,0.45)'
-                      : '0 0 25px rgba(239,68,68,0.45)',
-            }}
             className={`${
               bannerType === 'image' && bannerImageUrl
                 ? 'px-4 pt-3 pb-1'
                 : 'px-4 py-3'
-            }`}>
-            {/* Shimmer overlay */}
-            <div
-              className="absolute inset-0 -z-10"
-              style={{
-                background: `linear-gradient(
-                  90deg,
-                  transparent 0%,
-                  rgba(255,255,255,0.55) 50%,
-                  transparent 100%
-                )`,
-                transform: 'skewX(-25deg) translateX(-140%)',
-                animation: 'bannerShimmer 2s linear infinite',
-              }}
-            />
-            {bannerType === 'image' && bannerImageUrl ? (
+            } relative overflow-hidden`}
+            style={{
+              boxShadow:
+                bannerEffect === 'glow' ? bannerGlowShadow() : undefined,
+              animation:
+                bannerEffect === 'glow' ? 'bannerGlowPulse 3s ease-in-out infinite' : undefined,
+              background:
+                bannerEffect === 'sparkle' && bannerType === 'text'
+                  ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #334155 100%)'
+                  : undefined,
+              backgroundSize:
+                bannerEffect === 'sparkle' && bannerType === 'text' ? '200% 200%' : undefined,
+            }}
+          >
+            {bannerType === 'text' && bannerText ? (
               bannerLink ? (
                 <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
-                  <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
-                </a>
-              ) : (
-                <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
-              )
-            ) : bannerText ? (
-              bannerLink ? (
-                <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
-                  <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${
-                    bannerColor === 'blue' ? 'bg-blue-600' :
-                    bannerColor === 'emerald' ? 'bg-emerald-600' :
-                    bannerColor === 'amber' ? 'bg-amber-600' : 'bg-red-600'
-                  }`}>
+                  <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${bannerBaseColor()} relative overflow-hidden`}>
+                    {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
+                    {bannerEffect === 'sparkle' && (
+                      <div className="banner-sparkle-layer" aria-hidden="true">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                          <span
+                            key={i}
+                            className="banner-sparkle-dot"
+                            style={{
+                              left: `${20 + i * 11}%`,
+                              top: `${30 + (i % 3) * 15}%`,
+                              width: `${6 + (i % 3)}px`,
+                              height: `${6 + (i % 3)}px`,
+                              animationDelay: `${i * 0.4}s`,
+                              animationDuration: `${2 + i * 0.5}s`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {bannerEffect === 'glow' && (
+                      <span className="banner-sparkle-badge">✨ Baru</span>
+                    )}
                     {bannerText}
                   </div>
                 </a>
               ) : (
-                <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${
-                  bannerColor === 'blue' ? 'bg-blue-600' :
-                  bannerColor === 'emerald' ? 'bg-emerald-600' :
-                  bannerColor === 'amber' ? 'bg-amber-600' : 'bg-red-600'
-                }`}>
+                <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${bannerBaseColor()} relative overflow-hidden`}>
+                  {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
+                  {bannerEffect === 'sparkle' && (
+                    <div className="banner-sparkle-layer" aria-hidden="true">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                        <span
+                          key={i}
+                          className="banner-sparkle-dot"
+                          style={{
+                            left: `${20 + i * 11}%`,
+                            top: `${30 + (i % 3) * 15}%`,
+                            width: `${6 + (i % 3)}px`,
+                            height: `${6 + (i % 3)}px`,
+                            animationDelay: `${i * 0.4}s`,
+                            animationDuration: `${2 + i * 0.5}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {bannerEffect === 'glow' && (
+                    <span className="banner-sparkle-badge">✨ Baru</span>
+                  )}
                   {bannerText}
                 </div>
               )
             ) : null}
+            {/* Image mode */}
+            {bannerType === 'image' && bannerImageUrl ? (
+              bannerLink ? (
+                <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
+                  <div className="banner-image-wrap">
+                    {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
+                    {bannerEffect === 'sparkle' && (
+                      <div className="banner-sparkle-layer" aria-hidden="true">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                          <span
+                            key={i}
+                            className="banner-sparkle-dot"
+                            style={{
+                              left: `${15 + i * 12}%`,
+                              top: `${20 + (i % 4) * 18}%`,
+                              width: `${7 + (i % 3)}px`,
+                              height: `${7 + (i % 3)}px`,
+                              animationDelay: `${i * 0.5}s`,
+                              animationDuration: `${2.5 + i * 0.4}s`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
+                  </div>
+                </a>
+              ) : (
+                <div className="banner-image-wrap">
+                  {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
+                  {bannerEffect === 'sparkle' && (
+                    <div className="banner-sparkle-layer" aria-hidden="true">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                        <span
+                          key={i}
+                          className="banner-sparkle-dot"
+                          style={{
+                            left: `${15 + i * 12}%`,
+                            top: `${20 + (i % 4) * 18}%`,
+                            width: `${7 + (i % 3)}px`,
+                            height: `${7 + (i % 3)}px`,
+                            animationDelay: `${i * 0.5}s`,
+                            animationDuration: `${2.5 + i * 0.4}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
+                </div>
+              )
+            ) : null}
           </div>
-          <style>
-            {`
-              @keyframes bannerGlow {
-                0%, 100% { box-shadow: 0 0 25px rgba(255,255,255,0.45); }
-                50% { box-shadow: 0 0 55px rgba(255,255,255,0.85); }
-              }
-              @keyframes bannerShimmer {
-                0% { transform: skewX(-25deg) translateX(-140%); }
-                100% { transform: skewX(-25deg) translateX(260%); }
-              }
-            `}
-          </style>
         </div>
       )}
     </div>

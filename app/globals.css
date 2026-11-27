@@ -1,3 +1,4 @@
+/* stylelint-disable at-rule-no-unknown */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -231,4 +232,98 @@ body {
   font-size: 0.875rem;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+/* ============================================================
+   BANNER ANIMATIONS
+   ============================================================ */
+
+/* Shimmer overlay — diagonal light sweep (applied to text & image banner) */
+.banner-shimmer-layer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.65) 50%,
+    transparent 100%
+  );
+  transform: skewX(-25deg) translateX(-140%);
+  animation: bannerShimmer 2s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes bannerShimmer {
+  0% { transform: skewX(-25deg) translateX(-140%); }
+  100% { transform: skewX(-25deg) translateX(260%); }
+}
+
+/* Sparkle background — moving gradient (text mode sparkle) */
+.banner-sparkle-bg {
+  background-size: 200% 200%;
+  animation: bannerGradient 7s ease infinite;
+}
+
+.banner-sparkle-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.banner-sparkle-dot {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  animation: bannerSparkle ease infinite;
+}
+
+@keyframes bannerSparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+
+@keyframes bannerGradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Glow pulse — soft radiating light around banner */
+.banner-glow-layer {
+  animation: bannerGlowPulse 3s ease-in-out infinite;
+}
+
+@keyframes bannerGlowPulse {
+  0%, 100% { box-shadow: 0 0 25px rgba(255, 255, 255, 0.45); }
+  50% { box-shadow: 0 0 55px rgba(255, 255, 255, 0.85); }
+}
+
+/* Sparkle badge — small glowing pill next to glow banner text */
+.banner-sparkle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  animation: bannerBadgePulse 2s ease-in-out infinite;
+}
+
+@keyframes bannerBadgePulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+/* Ensure image banners are wrapped in relative overflow-hidden container */
+.banner-image-wrap {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+  width: 100%;
 }

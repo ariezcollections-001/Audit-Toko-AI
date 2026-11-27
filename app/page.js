@@ -70,6 +70,7 @@ export default function Home() {
     bannerColor: 'blue',
     bannerImageUrl: '',
     bannerLink: '',
+    bannerEffect: 'shimmer',
     aiChatEnabled: true,
     aiCustomKnowledge: '',
   })
