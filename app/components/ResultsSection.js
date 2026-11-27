@@ -338,12 +338,12 @@ const totalHpp = summary?.totalHpp || 0
 
 
   return (
-    <section className="md:py-24 bg-gray-50">
+    <section className={`bg-gray-50 ${adminConfig?.bannerEnabled === true ? 'md:py-3' : 'md:py-6'}`}>
       {onBackToHome && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-2">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-1">
           <button
             onClick={onBackToHome}
-            className="inline-flex items-center gap-2 text-slate-600 font-medium hover:text-slate-900 transition-colors mt-0 mb-3"
+            className="inline-flex items-center gap-2 text-slate-600 font-medium hover:text-slate-900 transition-colors mt-0 mb-1"
           >
             <ArrowRight className="w-4 h-4" rotate="-90" />
             Kembali ke Beranda / Upload File Lain

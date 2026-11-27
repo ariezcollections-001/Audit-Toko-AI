@@ -29,12 +29,15 @@ export default function Home() {
 
   // Baca view yang disimpan dari localStorage setelah komponen montase (client only)
   // agar tidak terjadi hydration mismatch saat refresh halaman.
+  // Safety timeout memastikan spinner tidak putar terus jika useEffect terlambat.
   useEffect(() => {
     try {
       const saved = localStorage.getItem('audit_view')
       if (saved === 'results') setView('results')
     } catch {}
-    setIsHydrated(true)
+
+    const timer = setTimeout(() => setIsHydrated(true), 300)
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
