@@ -25,24 +25,116 @@ export default function Header({
   const bannerImageUrl = adminConfig?.bannerImageUrl || ''
   const bannerLink = adminConfig?.bannerLink || ''
   const bannerEffect = adminConfig?.bannerEffect || 'shimmer'
+  const bannerTextMotion = adminConfig?.bannerTextMotion || 'marquee'
 
   const bannerBaseColor = () => {
     switch (bannerColor) {
       case 'emerald': return 'bg-emerald-600'
       case 'amber': return 'bg-amber-600'
       case 'red': return 'bg-red-600'
+      case 'violet': return 'bg-violet-600'
+      case 'pink': return 'bg-pink-600'
+      case 'orange': return 'bg-orange-600'
+      case 'cyan': return 'bg-cyan-600'
+      case 'white': return 'bg-white'
+      case 'black': return 'bg-black'
       default: return 'bg-blue-600'
     }
   }
 
-  const bannerGlowShadow = () => {
+  const bannerTextColor = () => {
+    return bannerColor === 'white' || bannerColor === 'black'
+      ? bannerColor === 'white' ? 'text-slate-900' : 'text-white'
+      : 'text-white'
+  }
+
+  const bannerEffectShadow = () => {
     switch (bannerColor) {
       case 'emerald': return '0 0 25px rgba(16,185,129,0.45)'
       case 'amber': return '0 0 25px rgba(245,158,11,0.45)'
       case 'red': return '0 0 25px rgba(239,68,68,0.45)'
+      case 'violet': return '0 0 25px rgba(139,92,246,0.45)'
+      case 'pink': return '0 0 25px rgba(236,72,153,0.45)'
+      case 'orange': return '0 0 25px rgba(234,88,12,0.45)'
+      case 'cyan': return '0 0 25px rgba(6,182,212,0.45)'
+      case 'white': return '0 0 25px rgba(15,23,42,0.25)'
+      case 'black': return '0 0 25px rgba(255,255,255,0.35)'
       default: return '0 0 25px rgba(59,130,246,0.45)'
     }
   }
+
+  const bannerBadge = (
+    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold border border-white/40 shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{ animation: 'bannerSparkleTwinkle 1.2s ease-in-out infinite alternate' }}>
+      ✨ Promo
+    </span>
+  )
+
+  const bannerSparkleColor = () => {
+    if (bannerColor === 'white') return '#0f172a'
+    if (bannerColor === 'black') return '#ffffff'
+    return '#ffffff'
+  }
+
+  const bannerTextEl = (
+    <div className={`w-full px-4 py-3 text-center font-medium rounded-b-xl shadow-lg ${bannerBaseColor()} ${bannerTextColor()} relative overflow-hidden`}>
+      {bannerEffect === 'shimmer' && (
+        <div className="pointer-events-none absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/60 to-transparent z-1" style={{ animation: 'bannerShineSweep 2.2s linear infinite' }} />
+      )}
+      {bannerEffect === 'sparkle' && (
+        <div className="absolute inset-0 pointer-events-none z-1" aria-hidden="true">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => {
+            const sparkleColor = bannerSparkleColor()
+            return (
+              <span key={i} className="banner-sparkle-particle absolute" style={{
+                left: `${20 + i * 11}%`,
+                top: `${30 + (i % 3) * 15}%`,
+                fontSize: `${10 + (i % 4)}px`,
+                color: sparkleColor,
+                textShadow: sparkleColor === '#ffffff' ? '0 0 6px #ffffff, 0 0 12px rgba(255,255,255,0.6)' : '0 0 6px #0f172a, 0 0 12px rgba(15,23,42,0.6)',
+                animation: 'bannerSparkleTwinkle 1.2s ease-in-out infinite alternate',
+                animationDelay: `${i * 0.15}s`,
+              }}>★</span>
+            )
+          })}
+        </div>
+      )}
+      {bannerTextMotion === 'marquee' ? (
+        <div className="overflow-hidden w-full">
+          <span className={`inline-block whitespace-nowrap banner-marquee-track font-extrabold tracking-wide uppercase text-sm md:text-base drop-shadow-sm ${bannerTextColor()}`} style={{ animation: 'bannerMarquee 16s linear infinite' }}>
+            {bannerText}{bannerBadge}
+          </span>
+        </div>
+      ) : (
+        <span className={`font-extrabold tracking-wide uppercase text-sm md:text-base drop-shadow-sm ${bannerTextColor()} block w-full text-center px-4`}>
+          {bannerText}{bannerBadge}
+        </span>
+      )}
+    </div>
+  )
+
+  const bannerImageEl = (
+    <div className="banner-image-wrap">
+      {bannerEffect === 'shimmer' && (
+        <div className="pointer-events-none absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/60 to-transparent z-1" style={{ animation: 'bannerShineSweep 2.2s linear infinite' }} />
+      )}
+      {bannerEffect === 'sparkle' && (
+        <div className="absolute inset-0 pointer-events-none z-1" aria-hidden="true">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <span key={i} className="banner-sparkle-particle absolute" style={{
+              left: `${15 + i * 12}%`,
+              top: `${20 + (i % 4) * 18}%`,
+              fontSize: `${10 + (i % 4)}px`,
+              color: '#ffffff',
+              textShadow: '0 0 6px #ffffff, 0 0 12px rgba(255,255,255,0.6)',
+              animation: 'bannerSparkleTwinkle 1.2s ease-in-out infinite alternate',
+              animationDelay: `${i * 0.15}s`,
+            }}>★</span>
+          ))}
+        </div>
+      )}
+      <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
+    </div>
+  )
 
   return (
     <div className="sticky top-0 z-40 w-full bg-white shadow-sm">
@@ -207,124 +299,32 @@ export default function Header({
             } relative overflow-hidden`}
             style={{
               boxShadow:
-                bannerEffect === 'glow' ? bannerGlowShadow() : undefined,
+                bannerEffect === 'neon' ? bannerEffectShadow() : undefined,
               animation:
-                bannerEffect === 'glow' ? 'bannerGlowPulse 3s ease-in-out infinite' : undefined,
-              background:
-                bannerEffect === 'sparkle' && bannerType === 'text'
-                  ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #334155 100%)'
-                  : undefined,
-              backgroundSize:
-                bannerEffect === 'sparkle' && bannerType === 'text' ? '200% 200%' : undefined,
+                bannerEffect === 'neon' ? 'bannerNeonPulse 1.4s ease-in-out infinite alternate'
+                : bannerEffect === 'ombak' ? 'bannerWave 3s ease-in-out infinite'
+                : bannerEffect === 'lembut' ? 'bannerFade 2s ease-in-out infinite alternate'
+                : bannerEffect === 'rgb' ? 'bannerRgbGlow 2s linear infinite'
+                : undefined,
             }}
           >
             {bannerType === 'text' && bannerText ? (
               bannerLink ? (
                 <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
-                  <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${bannerBaseColor()} relative overflow-hidden`}>
-                    {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
-                    {bannerEffect === 'sparkle' && (
-                      <div className="banner-sparkle-layer" aria-hidden="true">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                          <span
-                            key={i}
-                            className="banner-sparkle-dot"
-                            style={{
-                              left: `${20 + i * 11}%`,
-                              top: `${30 + (i % 3) * 15}%`,
-                              width: `${6 + (i % 3)}px`,
-                              height: `${6 + (i % 3)}px`,
-                              animationDelay: `${i * 0.4}s`,
-                              animationDuration: `${2 + i * 0.5}s`,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {bannerEffect === 'glow' && (
-                      <span className="banner-sparkle-badge">✨ Baru</span>
-                    )}
-                    {bannerText}
-                  </div>
+                  {bannerTextEl}
                 </a>
               ) : (
-                <div className={`w-full px-4 py-3 text-center font-medium text-white rounded-b-xl shadow-lg ${bannerBaseColor()} relative overflow-hidden`}>
-                  {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
-                  {bannerEffect === 'sparkle' && (
-                    <div className="banner-sparkle-layer" aria-hidden="true">
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                        <span
-                          key={i}
-                          className="banner-sparkle-dot"
-                          style={{
-                            left: `${20 + i * 11}%`,
-                            top: `${30 + (i % 3) * 15}%`,
-                            width: `${6 + (i % 3)}px`,
-                            height: `${6 + (i % 3)}px`,
-                            animationDelay: `${i * 0.4}s`,
-                            animationDuration: `${2 + i * 0.5}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {bannerEffect === 'glow' && (
-                    <span className="banner-sparkle-badge">✨ Baru</span>
-                  )}
-                  {bannerText}
-                </div>
+                bannerTextEl
               )
             ) : null}
             {/* Image mode */}
             {bannerType === 'image' && bannerImageUrl ? (
               bannerLink ? (
                 <a href={bannerLink} target="_blank" rel="noopener noreferrer" className="block">
-                  <div className="banner-image-wrap">
-                    {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
-                    {bannerEffect === 'sparkle' && (
-                      <div className="banner-sparkle-layer" aria-hidden="true">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                          <span
-                            key={i}
-                            className="banner-sparkle-dot"
-                            style={{
-                              left: `${15 + i * 12}%`,
-                              top: `${20 + (i % 4) * 18}%`,
-                              width: `${7 + (i % 3)}px`,
-                              height: `${7 + (i % 3)}px`,
-                              animationDelay: `${i * 0.5}s`,
-                              animationDuration: `${2.5 + i * 0.4}s`,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
-                  </div>
+                  {bannerImageEl}
                 </a>
               ) : (
-                <div className="banner-image-wrap">
-                  {bannerEffect === 'shimmer' && <div className="banner-shimmer-layer" />}
-                  {bannerEffect === 'sparkle' && (
-                    <div className="banner-sparkle-layer" aria-hidden="true">
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                        <span
-                          key={i}
-                          className="banner-sparkle-dot"
-                          style={{
-                            left: `${15 + i * 12}%`,
-                            top: `${20 + (i % 4) * 18}%`,
-                            width: `${7 + (i % 3)}px`,
-                            height: `${7 + (i % 3)}px`,
-                            animationDelay: `${i * 0.5}s`,
-                            animationDuration: `${2.5 + i * 0.4}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <img src={bannerImageUrl} alt="Banner Promo" className="w-full max-h-48 object-cover rounded-xl shadow-sm mx-auto" />
-                </div>
+                bannerImageEl
               )
             ) : null}
           </div>

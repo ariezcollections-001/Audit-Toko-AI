@@ -429,6 +429,7 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
   const [bannerType, setBannerType] = useState(config.bannerType || 'text')
   const [bannerColor, setBannerColor] = useState(config.bannerColor || 'blue')
   const [bannerEffect, setBannerEffect] = useState(config.bannerEffect || 'shimmer')
+  const [bannerTextMotion, setBannerTextMotion] = useState(config.bannerTextMotion || 'marquee')
   const [bannerImagePreview, setBannerImagePreview] = useState(config.bannerImageUrl || '')
   const [aiChatEnabled, setAiChatEnabled] = useState(config.aiChatEnabled !== false)
   const [localAuditPrice, setLocalAuditPrice] = useState(String(config.auditPrice || 15000))
@@ -464,7 +465,7 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
   const handleSaveBanner = async () => {
     if (!adminPassword) { showToast('Masukkan password admin terlebih dahulu.', 'error'); return }
     try {
-      const res = await adminApi('update_config', { bannerEnabled, bannerType, bannerText: localBannerText.trim(), bannerColor, bannerEffect, bannerImageUrl: bannerImagePreview, bannerLink: localBannerLink.trim(), password: adminPassword })
+      const res = await adminApi('update_config', { bannerEnabled, bannerType, bannerText: localBannerText.trim(), bannerColor, bannerEffect, bannerTextMotion, bannerImageUrl: bannerImagePreview, bannerLink: localBannerLink.trim(), password: adminPassword })
       if (res.ok) { const d = await res.json(); setConfig(d.config); showToast('Pengaturan banner berhasil disimpan!', 'success'); await fetchData() }
       else { showToast('Gagal menyimpan Banner.', 'error') }
     } catch { showToast('Gagal server.', 'error') }
@@ -556,7 +557,10 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
               {[
                 { id: 'shimmer', label: 'Kilau Cahaya' },
                 { id: 'sparkle', label: 'Gemerlap Bintang' },
-                { id: 'glow', label: 'Denyut Bercahaya' },
+                { id: 'neon', label: 'Denyut Neon' },
+                { id: 'ombak', label: 'Ombak' },
+                { id: 'lembut', label: 'Denyut Lembut' },
+                { id: 'rgb', label: 'Kilau RGB' },
                 { id: 'none', label: 'Statis' },
               ].map((eff) => (
                 <button
@@ -577,10 +581,29 @@ export const TabControls = ({ config, setConfig, adminPassword, showToast, fetch
               <input type="text" value={localBannerText} onChange={(e) => setLocalBannerText(e.target.value)} placeholder="Contoh: Diskon 20% untuk audit minggu ini!" className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
               <label className="text-sm font-medium text-slate-700">Warna Pita</label>
               <div className="flex gap-2">
-                {['blue', 'emerald', 'amber', 'red'].map((color) => (
-                  <button key={color} onClick={() => setBannerColor(color)} className={`w-10 h-10 rounded-full border-2 transition-all ${bannerColor === color ? 'ring-2 ring-slate-300 scale-110' : 'border-transparent'} ${color === 'blue' ? 'bg-blue-500' : color === 'emerald' ? 'bg-emerald-500' : color === 'amber' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                {['blue', 'emerald', 'amber', 'red', 'violet', 'pink', 'orange', 'cyan', 'white', 'black'].map((color) => (
+                  <button key={color} onClick={() => setBannerColor(color)} className={`w-10 h-10 rounded-full border-2 transition-all ${bannerColor === color ? 'ring-2 ring-slate-300 scale-110' : 'border-transparent'} ${color === 'blue' ? 'bg-blue-500' : color === 'emerald' ? 'bg-emerald-500' : color === 'amber' ? 'bg-amber-500' : color === 'red' ? 'bg-red-500' : color === 'violet' ? 'bg-violet-500' : color === 'pink' ? 'bg-pink-500' : color === 'orange' ? 'bg-orange-500' : color === 'cyan' ? 'bg-cyan-500' : color === 'white' ? 'bg-white border-slate-300' : 'bg-black'}`} />
                 ))}
               </div>
+
+              <label className="text-sm font-medium text-slate-700 mb-2 block">Gaya Gerak Teks</label>
+              <div className="flex gap-2">
+                {[
+                  { id: 'marquee', label: 'Berjalan Kanan ke Kiri (Running Text)' },
+                  { id: 'static', label: 'Diam di Tengah (Statis)' },
+                ].map((motion) => (
+                  <button
+                    key={motion.id}
+                    onClick={() => setBannerTextMotion(motion.id)}
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition-all border ${bannerTextMotion === motion.id ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                  >
+                    {motion.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                marquee = teks berjalan kanan ke kiri · static = teks diam rata tengah.
+              </p>
             </div>
           )}
           {bannerType === 'image' && (
@@ -738,6 +761,7 @@ export default function AdminPage() {
     brandName: 'AuditToko AI', brandLogoUrl: '', auditPrice: 15000,
     maintenanceMode: false, bannerEnabled: false, bannerType: 'text',
     bannerText: '', bannerColor: 'blue', bannerImageUrl: '', bannerLink: '',
+    bannerTextMotion: 'marquee',
     bannerEffect: 'shimmer',
     aiChatEnabled: true, aiCustomKnowledge: '',
   })

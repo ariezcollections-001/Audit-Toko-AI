@@ -70,6 +70,7 @@ export default function Home() {
     bannerColor: 'blue',
     bannerImageUrl: '',
     bannerLink: '',
+    bannerTextMotion: 'marquee',
     bannerEffect: 'shimmer',
     aiChatEnabled: true,
     aiCustomKnowledge: '',
@@ -166,6 +167,8 @@ export default function Home() {
               bannerColor: data.bannerColor || 'blue',
               bannerImageUrl: data.bannerImageUrl || '',
               bannerLink: data.bannerLink || '',
+              bannerEffect: data.bannerEffect || 'shimmer',
+              bannerTextMotion: data.bannerTextMotion || 'marquee',
               aiChatEnabled: data.aiChatEnabled !== false,
               aiCustomKnowledge: data.aiCustomKnowledge || '',
             })

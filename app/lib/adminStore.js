@@ -16,6 +16,7 @@ const DEFAULT_CONFIG = {
   bannerColor: 'blue',
   bannerImageUrl: '',
   bannerLink: '',
+  bannerTextMotion: 'marquee',
   bannerEffect: 'shimmer',
   aiChatEnabled: true,
   aiCustomKnowledge: '',
