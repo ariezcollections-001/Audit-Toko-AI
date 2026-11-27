@@ -607,6 +607,11 @@ const totalHpp = summary?.totalHpp || 0
               <p className="text-[10px] text-emerald-100">Admin + Ongkir pesanan retur</p>
             </div>
             <div>
+              <p className="text-emerald-200 text-xs">− Selisih Ongkir (Beban Penjual)</p>
+              <p className="text-sm font-bold text-red-200">{formatRupiah(summary?.shippingDifferenceTotal ?? 0)}</p>
+              <p className="text-[10px] text-emerald-100">Selisih ongkir per pesanan (beban penjual)</p>
+            </div>
+            <div>
               <p className="text-emerald-200 text-xs">= Laba Bersih Sesungguhnya</p>
               <p className="text-sm font-bold">{formatRupiah(computed?.labaBersih ?? 0)}</p>
               <p className="text-[10px] text-emerald-100">Dana Cair − HPP − Packing − Iklan − Retur</p>
@@ -776,33 +781,49 @@ const totalHpp = summary?.totalHpp || 0
               </div>
             )}
 
-            {/* === SELISIH ONGKIR & BIAYA RETUR — dipindahkan ke paling bawah di ResultsSection === */}
-            {!isPriceTableZoomed && claims.length > 0 && (
+            {/* === SELISIH ONGKIR & BIAYA RETUR — tepat di bawah Unduh File Perbaikan, di atas Laporan Sudah Terbuka === */}
+            {!isPriceTableZoomed && (claims.length > 0 || returnedOrders.length > 0) && (
               <div className="mt-8 shrink-0">
                 <div className="flex items-center gap-2 mb-3">
                   <Truck className="w-5 h-5 text-blue-600" />
                   <h4 className="font-bold text-blue-700">🔵 Selisih Ongkir & Biaya Retur</h4>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
-                  Pesanan dengan selisih berat/ongkir tidak wajar atau retur yang memotong biaya admin.
+                  Pesanan dengan selisih ongkir atau biaya retur/pengembalian dana yang menjadi beban penjual.
                 </p>
                 <table className="w-full text-sm">
                   <thead className="bg-blue-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">No. Pesanan</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">Produk</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">Resi</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-blue-700 uppercase">Selisih Ongkir</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">SKU</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-blue-700 uppercase">Nominal (Rp)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-100">
-                    {claims.map((c) => (
-                      <tr key={c.orderId}>
-                        <td className="px-4 py-3 text-gray-900 font-medium">{c.orderId}</td>
-                        <td className="px-4 py-3 text-gray-600">{c.product}</td>
-                        <td className="px-4 py-3 text-gray-600">{c.resi}</td>
+                    {/* Gabungkan data claims (selisih ongkir) dan returnedOrders (biaya retur) */}
+                    {[
+                      ...claims.map((c) => ({
+                        orderId: c.orderId,
+                        product: c.product,
+                        sku: c.sku || '-',
+                        nominal: c.difference,
+                        type: 'ongkir',
+                      })),
+                      ...returnedOrders.map((r) => ({
+                        orderId: r.orderId,
+                        product: r.productName,
+                        sku: r.sku || '-',
+                        nominal: r.lostFeeAmount || r.refundAmount || 0,
+                        type: 'retur',
+                      })),
+                    ].map((item, idx) => (
+                      <tr key={`${item.orderId}-${item.type}-${idx}`}>
+                        <td className="px-4 py-3 text-gray-900 font-medium">{item.orderId}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.product}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.sku}</td>
                         <td className="px-4 py-3 text-right text-blue-600 font-semibold">
-                          {formatRupiah(c.difference)}
+                          {formatRupiah(item.nominal)}
                         </td>
                       </tr>
                     ))}

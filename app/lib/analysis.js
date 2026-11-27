@@ -213,6 +213,25 @@ const COLUMN_ALIASES = {
     'selisih biaya kirim', 'selisih ongkos kirim', 'shipping diff',
     'selisih ongkir shopee', 'perbedaan ongkir'
   ],
+  shippingRevenue: [
+    'pendapatan ongkir', 'ongkir pendapatan', 'pendapatan pengiriman',
+    'shipping revenue', 'shipping income', 'pendapatan ongkos kirim',
+    'biaya kirim dibebankan pembeli'
+  ],
+  shippingBorneBySeller: [
+    'ongkir ditanggung penjual', 'ongkir dibebankan penjual',
+    'biaya ongkir ditanggung penjual', 'ongkir penjual ditanggung',
+    'shipping borne by seller', 'seller shipping burden', 'ongkir tanggung penjual'
+  ],
+  shippingActualCourier: [
+    'ongkir aktual ekspedisi', 'ongkir aktual kurir', 'ongkir aktual',
+    'biaya ongkir aktual', 'actual shipping courier', 'actual shipping cost',
+    'biaya kirim aktual', 'biaya aktual ekspedisi'
+  ],
+  shippingFeeDiscrepancy: [
+    'shipping fee discrepancy', 'selisih ongkir pembelian',
+    'perbedaan ongkir pembelian', 'shipping fee diff'
+  ],
   amsCommission: [
     'biaya komisi ams', 'ams commission', 'komisi ams',
     'biaya ams', 'komisi iklan shopee', 'biaya iklan shopee'
@@ -1321,6 +1340,8 @@ initShopeeDeductionColumns()
   const orderProductCounts = {}
   // Counter untuk urutan asli kemunculan produk (fixed order di tabel)
   let originalIndexCounter = 0
+  // Akumulator total selisih ongkir beban penjual (seluruh variasi kolom)
+  let summaryShippingDiffTotal = 0
 
   for (const row of rows) {
     const orderId = getStr(row, 'orderId', ['No. Pesanan', 'order id', 'invoice'])
@@ -1392,6 +1413,10 @@ initShopeeDeductionColumns()
     const additionalServiceFee = get(row, 'additionalServiceFee', ['Biaya Layanan Tambahan', 'additional service fee'])
     const shippingDeduction = get(row, 'shippingDeduction', ['Potongan Ongkos Kirim dari Shopee', 'shipping deduction'])
     const shippingPaidToCourier = get(row, 'shippingPaidToCourier', ['Ongkos Kirim yang Dibayarkan ke Jasa Kirim', 'shipping paid to courier'])
+    const shippingRevenue = get(row, 'shippingRevenue', ['Pendapatan Ongkir', 'ongkir pendapatan', 'shipping revenue', 'pendapatan ongkos kirim'])
+    const shippingBorneBySeller = get(row, 'shippingBorneBySeller', ['Ongkir Ditanggung Penjual', 'ongkir ditanggung penjual', 'shipping borne by seller', 'ongkir tanggung penjual'])
+    const shippingActualCourier = get(row, 'shippingActualCourier', ['Ongkir Aktual Ekspedisi', 'ongkir aktual ekspedisi', 'actual shipping courier', 'ongkir aktual'])
+    const shippingFeeDiscrepancy = get(row, 'shippingFeeDiscrepancy', ['Shipping Fee Discrepancy', 'selisih ongkir pembelian', 'perbedaan ongkir pembelian', 'shipping fee diff'])
 
     // --- Anti-error: pastikan semua nilai angka aman (tidak NaN/Infinity) ---
     const safeSettlement = isFinite(settlement) ? settlement : 0
@@ -1412,6 +1437,10 @@ initShopeeDeductionColumns()
     const safeAdditionalServiceFee = isFinite(additionalServiceFee) ? additionalServiceFee : 0
     const safeShippingDeduction = isFinite(shippingDeduction) ? shippingDeduction : 0
     const safeShippingPaidToCourier = isFinite(shippingPaidToCourier) ? shippingPaidToCourier : 0
+    const safeShippingRevenue = isFinite(shippingRevenue) ? shippingRevenue : 0
+    const safeShippingBorneBySeller = isFinite(shippingBorneBySeller) ? shippingBorneBySeller : 0
+    const safeShippingActualCourier = isFinite(shippingActualCourier) ? shippingActualCourier : 0
+    const safeShippingFeeDiscrepancy = isFinite(shippingFeeDiscrepancy) ? shippingFeeDiscrepancy : 0
 
     let extraCosts = 0
     for (const [key, colName] of Object.entries(mapping)) {
@@ -1528,6 +1557,50 @@ initShopeeDeductionColumns()
         resi: resi || '-', paidShipping: safeBuyerShipping, estimatedShipping: safeEstShipping,
         difference: safeEstShipping - safeBuyerShipping,
       })
+    }
+
+    // --- Deteksi Selisih Ongkir per Baris Pesanan (semua variasi kolom) ---
+    // Prioritas 1: kolom potongan langsung (Selisih Ongkir / Shipping Fee Discrepancy)
+    // Prioritas 2: perbandingan pasangan kolom ongkir
+    //   Pendapatan Ongkir / Ongkir Dibayar Pembeli  vs  Ongkir Ditanggung Penjual / Ongkir Aktual Ekspedisi / Ongkir Dibayar ke Kurir
+    let rowShippingDiff = 0
+    let rowShippingDiffLabel = ''
+    if (safeShippingDifference !== 0) {
+      rowShippingDiff = safeShippingDifference
+      rowShippingDiffLabel = 'Selisih Ongkir'
+    } else if (safeShippingFeeDiscrepancy !== 0) {
+      rowShippingDiff = safeShippingFeeDiscrepancy
+      rowShippingDiffLabel = 'Shipping Fee Discrepancy'
+    } else {
+      const shippingCharged = safeShippingRevenue || safeBuyerShipping
+      const shippingBorne = safeShippingBorneBySeller || safeShippingActualCourier || safeShippingPaidToCourier
+      if (shippingCharged > 0 || shippingBorne > 0) {
+        rowShippingDiff = shippingCharged - shippingBorne
+        rowShippingDiffLabel = 'Selisih Ongkir (perbandingan)'
+      }
+    }
+
+    // Simpan ke properti produk untuk referensi Sheet 2 / detail
+    const pForDiff = products[productKey]
+    if (pForDiff && rowShippingDiff !== 0) {
+      pForDiff.shippingDiff = (pForDiff.shippingDiff || 0) + rowShippingDiff
+    }
+
+    // Masukkan ke claims jika selisih ongkir beban penjual signifikan (> Rp 5.000)
+    if (rowShippingDiff > 5000) {
+      claims.push({
+        orderId: orderId || `ORD-${Date.now()}`,
+        product: productName,
+        sku: sku || '-',
+        resi: resi || '-',
+        difference: rowShippingDiff,
+        shippingDiffSource: rowShippingDiffLabel || 'Selisih Ongkir'
+      })
+    }
+
+    // Akumulasi total selisih ongkir beban penjual (hanya nilai positif)
+    if (rowShippingDiff > 0) {
+      summaryShippingDiffTotal += rowShippingDiff
     }
 
     // Deteksi status pesanan dari kolom Status / Status Settlement
@@ -1818,8 +1891,10 @@ initShopeeDeductionColumns()
     fakeStarCount: fakeStarProducts.length,
     totalRefundCosts: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
     biayaHangusRetur: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
+    shippingDifferenceTotal: summaryShippingDiffTotal,
     globalDeductions: isFinite(globalDeductions) ? globalDeductions : 0,
     returnedOrders: returnedOrders,
+    claims: claims,
     hasOrderIdColumn: hasOrderIdColumn,
   }
 
@@ -2102,8 +2177,8 @@ export function generateMassUpdateExcel(
   const labaBersih = settlementAmount - totalPengeluaranInternal - totalRefundCosts
   const marginLabaBersih = settlementAmount > 0 ? labaBersih / settlementAmount : 0
 
-  // Total selisih ongkir dari hasil analisis (claims)
-  const totalSelisihOngkir = Number(summary?.claimAmount || 0)
+  // Total selisih ongkir dari hasil analisis (semua variasi kolom ongkir)
+  const totalSelisihOngkir = Number(summary?.shippingDifferenceTotal || summary?.claimAmount || 0)
 
   // Proyeksi baru berdasarkan rekomendasi harga .900 (Sheet 1)
   // Hitung dari array `rows` (data Sheet 1) karena `newPrice` & `estProfit`
@@ -2216,12 +2291,73 @@ export function generateMassUpdateExcel(
   addRow('Estimasi Total Laba Bersih Baru (Jika Harga Diperbarui)', estimasiTotalLabaBaru, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
   addRow('Potensi Kenaikan Profit Tambahan (+Rp)', potensiKenaikanProfit, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
 
+  // --- 6. RINCIAN PESANAN SELISIH ONGKIR & BIAYA RETUR ---
+  const claimsList = Array.isArray(summary?.claims) ? summary.claims : []
+  const returnedList = Array.isArray(summary?.returnedOrders) ? summary.returnedOrders : []
+  const hasShippingOrReturnDetail = claimsList.length > 0 || returnedList.length > 0
+
+  if (hasShippingOrReturnDetail) {
+    addSection('6. RINCIAN PESANAN SELISIH ONGKIR & BIAYA RETUR')
+
+    // Header tabel detail (5 kolom) dengan gaya header biru tua (#1E3A8A) teks putih tebal
+    ws2Data.push([
+      { t: 's', v: 'No. Pesanan', s: headerStyle },
+      { t: 's', v: 'Nama Produk', s: headerStyle },
+      { t: 's', v: 'SKU', s: headerStyle },
+      { t: 's', v: 'Keterangan / Status', s: headerStyle },
+      { t: 's', v: 'Nominal Beban (Rp)', s: headerStyle },
+    ])
+
+    let grandTotalDiff = 0
+
+    // Data dari claims (selisih ongkir)
+    for (const c of claimsList) {
+      const nominal = Number(c.difference || 0)
+      grandTotalDiff += nominal
+      ws2Data.push([
+        { t: 's', v: String(c.orderId || '-'), s: dataStyle },
+        { t: 's', v: String(c.product || '-'), s: dataStyle },
+        { t: 's', v: String(c.sku || '-'), s: dataStyle },
+        { t: 's', v: String(c.shippingDiffSource || 'Selisih Ongkir'), s: dataStyle },
+        { t: 'n', v: nominal, s: { ...dataStyle, z: '"Rp"#,##0' } },
+      ])
+    }
+
+    // Data dari returnedOrders (biaya retur / pengembalian dana)
+    for (const r of returnedList) {
+      const nominal = Number(r.lostFeeAmount || r.refundAmount || 0)
+      grandTotalDiff += nominal
+      ws2Data.push([
+        { t: 's', v: String(r.orderId || '-'), s: dataStyle },
+        { t: 's', v: String(r.productName || r.product || '-'), s: dataStyle },
+        { t: 's', v: String(r.sku || '-'), s: dataStyle },
+        { t: 's', v: 'Retur / Pengembalian Dana', s: dataStyle },
+        { t: 'n', v: nominal, s: { ...dataStyle, z: '"Rp"#,##0' } },
+      ])
+    }
+
+    // Baris Total
+    ws2Data.push([
+      { t: 's', v: '', s: dataStyle },
+      { t: 's', v: '', s: dataStyle },
+      { t: 's', v: '', s: dataStyle },
+      { t: 's', v: 'TOTAL', s: { ...dataStyle, font: { ...LABEL_BOLD_FONT } } },
+      { t: 'n', v: grandTotalDiff, s: { ...dataStyle, font: VALUE_BOLD_FONT, z: '"Rp"#,##0' } },
+    ])
+  }
+
   const ws2 = XLSX.utils.aoa_to_sheet(ws2Data)
 
   // Tinggi baris header sheet 2
   ws2['!rows'] = [{ hpt: 30 }]
 
-  const widths2 = [{ wch: 55 }, { wch: 25 }]
+  const widths2 = [
+    { wch: 55 }, // Label / No. Pesanan
+    { wch: 35 }, // Nama Produk / Nilai
+    { wch: 15 }, // SKU
+    { wch: 30 }, // Keterangan / Status
+    { wch: 20 }, // Nominal Beban (Rp)
+  ]
   ws2['!cols'] = widths2
 
   const wb = XLSX.utils.book_new()
