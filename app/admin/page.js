@@ -44,8 +44,9 @@ const adminApi = async (action, body = {}, opts = {}) => {
    tidak dire-create setiap kali AdminPage me-render (fix kehilangan fokus)
    ===================================================================== */
 
-export const TabStats = ({ analytics, analyticsPeriod }) => {
+export const TabStats = ({ analytics, analyticsPeriod, setAnalytics, fetchData }) => {
   const [localPeriod, setLocalPeriod] = useState(analyticsPeriod)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   const stats = (() => {
     const now = new Date()
@@ -60,6 +61,13 @@ export const TabStats = ({ analytics, analyticsPeriod }) => {
     const conv = v > 0 ? ((un / v) * 100).toFixed(1) : 0
     return { visits: v, uploads: u, unlocks: un, conversion: parseFloat(conv) }
   })()
+
+  const handleResetStats = async () => {
+    setShowResetConfirm(false)
+    setAnalytics({ visits: [], uploads: [], unlocks: [] })
+    await fetchData()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex gap-2 mb-4">
@@ -68,6 +76,9 @@ export const TabStats = ({ analytics, analyticsPeriod }) => {
             {p.charAt(0).toUpperCase() + p.slice(1)}
           </button>
         ))}
+        <button onClick={() => setShowResetConfirm(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 transition-colors">
+          Reset Statistik
+        </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm"><div className="text-slate-500 text-xs font-semibold uppercase mb-1">Total Pengunjung</div><div className="text-3xl font-bold text-blue-600">{stats.visits}</div></div>
@@ -86,6 +97,24 @@ export const TabStats = ({ analytics, analyticsPeriod }) => {
           ))}
         </div>
       </div>
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 shadow-2xl max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Konfirmasi Reset Statistik</h3>
+            <p className="text-sm text-slate-600 mb-6">
+              Yakin ingin mereset seluruh statistik pengunjung, upload, laporan terbuka, dan tingkat konversi ke 0? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                Batal
+              </button>
+              <button onClick={handleResetStats} className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                Ya, Reset Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -854,7 +883,7 @@ export default function AdminPage() {
             </div>
           </header>
 
-          {activeTab === 1 && <TabStats analytics={analytics} analyticsPeriod="harian" />}
+          {activeTab === 1 && <TabStats analytics={analytics} analyticsPeriod="harian" setAnalytics={setAnalytics} fetchData={fetchData} />}
           {activeTab === 2 && <TabTransactions transactions={transactions} onResetDemo={handleResetTestData} />}
           {activeTab === 3 && <TabInbox supportTickets={supportTickets} fetchData={fetchData} showToast={show} />}
           {activeTab === 4 && <TabVouchers vouchers={vouchers} setVouchers={setVouchers} adminPassword={adminPassword} showToast={show} />}
