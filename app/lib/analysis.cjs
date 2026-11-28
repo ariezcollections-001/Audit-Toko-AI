@@ -1361,6 +1361,7 @@ initShopeeDeductionColumns()
     const orderId = getStr(row, 'orderId', ['No. Pesanan', 'order id', 'invoice'])
     const productNameRaw = getStr(row, 'productName', ['Nama Produk', 'product name', 'produk']) || ''
     const sku = getStr(row, 'sku', ['SKU', 'sku', 'kode produk']) || ''
+    const variation = getStr(row, 'variation', ['Nama Variasi', 'nama variasi', 'variation', 'variant name', 'varian', 'variasinya']) || ''
     // Dedup: jika orderId sudah pernah di-settlement, jangan tambahkan settlementAmount lagi (hindari 2x lipat)
     const isDuplicateSettlement = orderId && settledOrderIds.has(orderId)
     const settlement = isDuplicateSettlement ? 0 : get(row, 'settlementAmount', ['Total Penghasilan', 'settlement amount', 'amount'])
@@ -1721,6 +1722,7 @@ initShopeeDeductionColumns()
     }
     // Catat nama kolom asli dari file Excel untuk transparansi audit
     const p0 = products[productKey]
+    p0.variation = p0.variation || variation
     if (mapping.orderId && row[mapping.orderId] !== undefined) p0.originalColumns.orderId = mapping.orderId
     if (mapping.productName && row[mapping.productName] !== undefined) p0.originalColumns.productName = mapping.productName
     if (mapping.sku && row[mapping.sku] !== undefined) p0.originalColumns.sku = mapping.sku
@@ -2156,7 +2158,7 @@ function generateMassUpdateExcel(
   for (const r of rows) {
     ws1Data.push([
       { t: 'n', v: r.no, s: dataStyle, z: '0' },
-      { t: 's', v: r.sku, s: dataStyle },
+      { t: 's', v: r.sku || r.variation || '-', s: dataStyle },
       { t: 's', v: r.name, s: dataStyle },
       { t: 'n', v: r.unitsSold, s: dataStyle, z: '#,##0' },
       { t: 'n', v: r.oldPrice, s: dataStyle, z: '"Rp"#,##0' },
@@ -2219,7 +2221,7 @@ function generateMassUpdateExcel(
 
   const totalPengeluaranInternal = totalHpp + totalPackingAll + totalAdCost
   const labaBersih = settlementAmount - totalPengeluaranInternal - totalRefundCosts
-  const marginLabaBersih = settlementAmount > 0 ? labaBersih / settlementAmount : 0
+  const marginLabaBersih = totalGross > 0 ? labaBersih / totalGross : 0
 
   // Total selisih ongkir dari hasil analisis (semua variasi kolom ongkir)
   const totalSelisihOngkir = Number(summary?.shippingDifferenceTotal || summary?.claimAmount || 0)
@@ -2232,6 +2234,9 @@ function generateMassUpdateExcel(
     const units = r.unitsSold || 0
     if (r.hasHpp && r.newPrice && r.newPrice > 0) {
       estimasiTotalLabaBaru += (r.estProfit || 0) * units
+    } else if (!r.hasHpp) {
+      // Produk Belum Diisi HPP: gunakan Laba/Rugi Lama sebagai basis agar proyeksi tidak minus
+      estimasiTotalLabaBaru += (r.oldProfit || 0) * units
     }
   }
   // Kurangi beban retur & selisih ongkir agar laba bersih baru akurat
@@ -2330,8 +2335,8 @@ function generateMassUpdateExcel(
   )
   addRow('Margin Laba Bersih Toko (%)', marginLabaBersih, '0.00%')
 
-  // --- 5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU (.900) ---
-  addSection('5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU (.900)')
+  // --- 5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU ---
+  addSection('5. PROYEKSI HASIL SETELAH UPDATE HARGA JUAL BARU')
   addRow('Estimasi Total Laba Bersih Baru (Jika Harga Diperbarui)', estimasiTotalLabaBaru, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
   addRow('Potensi Kenaikan Profit Tambahan (+Rp)', potensiKenaikanProfit, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
 

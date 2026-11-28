@@ -51,6 +51,8 @@ export default function ResultsSection({
   adCost = 0,
   onAdCostChange,
   adminConfig,
+  fileName = '',
+  marketplace = '',
   onRecordEvent,
 }) {
   const [paymentSuccess, setPaymentSuccess] = useState(false)
@@ -124,7 +126,9 @@ export default function ResultsSection({
       packingMode,
       computed?.feeRatio ?? 0.1,
       summary,
-      adCostPeriod
+      adCostPeriod,
+      fileName,
+      marketplace
     )
     const blob = new Blob([buf], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -132,7 +136,9 @@ export default function ResultsSection({
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `mass-update-harga-${new Date().toISOString().slice(0, 10)}.xlsx`
+    const safeFileName = fileName ? fileName.replace(/\.[^/.]+$/, '').replace(/[^a-z0-9]/gi, '-') : 'Laporan'
+    const safeMarketplace = marketplace ? marketplace.charAt(0).toUpperCase() + marketplace.slice(1) : 'Marketplace'
+    a.download = `AuditTokoAI-Laporan-Audit-${safeMarketplace}-${safeFileName}-${new Date().toISOString().slice(0, 10)}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -787,7 +793,7 @@ const totalHpp = summary?.totalHpp || 0
 
             {/* === RINCIAN SELISIH ONGKIR (BEBAN PENJUAL) — tepat di bawah Unduh File Perbaikan, di atas Laporan Sudah Terbuka === */}
             {!isPriceTableZoomed && claims.some((c) => (c.difference || 0) > 0) && (
-              <div className="mt-8 shrink-0">
+              <div className="mt-8 shrink-0 border border-blue-200 bg-blue-50/40 rounded-xl p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-3">
                   <Truck className="w-5 h-5 text-blue-600" />
                   <h4 className="font-bold text-blue-700">🔵 Rincian Selisih Ongkir (Beban Penjual)</h4>
@@ -795,13 +801,13 @@ const totalHpp = summary?.totalHpp || 0
                 <p className="text-sm text-gray-600 mb-3">
                   Pesanan dengan selisih ongkir tersembunyi yang menjadi beban penjual.
                 </p>
-                <table className="w-full text-sm">
+                <table className="w-full text-sm border border-blue-200">
                   <thead className="bg-blue-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">No. Pesanan</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">Produk</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase">SKU</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-blue-700 uppercase">Nominal (Rp)</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase border-b border-blue-200">No. Pesanan</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase border-b border-blue-200">Produk</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase border-b border-blue-200">SKU</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-blue-700 uppercase border-b border-blue-200">Nominal (Rp)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-100">

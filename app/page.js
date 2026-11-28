@@ -1309,6 +1309,8 @@ export default function Home() {
               adCost={adCost}
               onAdCostChange={setAdCost}
               adminConfig={adminConfig}
+              fileName={fileData?.fileName || ''}
+              marketplace={marketplace || 'auto'}
               onRecordEvent={async (type, payload) => {
                 try {
                   await fetch('/api/admin', {
