@@ -270,12 +270,9 @@ const totalHpp = summary?.totalHpp || 0
       totalSettlement > 0 ? (labaBersih / totalSettlement) * 100 : 0
 
     // Rasio potongan marketplace (global, konsisten dengan analysis.js)
-    const totalMarketplaceFees = products.reduce(
-      (acc, p) => acc + (isFinite(p.marketplaceFees) ? p.marketplaceFees : 0),
-      0
-    )
+    // Total Potongan Marketplace = Total Omzet Kotor - Total Dana Bersih Cair (100% akurat)
     const feeRatio =
-      totalSettlement > 0 ? totalMarketplaceFees / totalSettlement : 0.1
+      summary?.totalGross > 0 ? summary.totalGrossDeduction / summary.totalGross : 0.1
 
     return {
       labaBersih,

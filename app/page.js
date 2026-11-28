@@ -18,6 +18,30 @@ const SESSION_PROGRESS_KEY = 'audit_session_progress'
 const ACTIVE_ID_KEY = 'audittoko_active_id' // ID laporan aktif yang tahan refresh browser (F5)
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 
+/**
+ * Bersihkan riwayat kedaluwarsa (>24 jam sejak createdAt) dari localStorage
+ * dan kembalikan hanya item yang masih valid.
+ * Dipanggil setiap kali perlu memastikan riwayat tidak mengandung item expired.
+ */
+const getValidHistory = () => {
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY)
+    if (!saved) return []
+    const parsed = JSON.parse(saved)
+    if (!Array.isArray(parsed)) return []
+    const now = Date.now()
+    const valid = parsed.filter((item) => {
+      const createdAt = item.createdAt || (item.uploadedAt ? new Date(item.uploadedAt).getTime() : 0)
+      return createdAt > 0 && now - createdAt < SESSION_TTL_MS
+    })
+    // Simpan kembali hanya yang valid (menghapus permanen yang expired dari localStorage)
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(valid))
+    return valid
+  } catch {
+    return []
+  }
+}
+
 export default function Home() {
   // View state: 'home' (Tampilan 1) | 'results' (Tampilan 2)
   // Di-persist ke localStorage agar tidak kembali ke beranda saat refresh
@@ -108,6 +132,8 @@ export default function Home() {
   const [isAlreadyPaid, setIsAlreadyPaid] = useState(false)
   const [expiresAt, setExpiresAt] = useState(null)
   const isRestoringRef = useRef(false)
+  const auditHistoryRef = useRef(auditHistory)
+  auditHistoryRef.current = auditHistory
 
   // Toast notifikasi (mis. anti-duplikat riwayat 24 Jam)
   const [toastMessage, setToastMessage] = useState(null)
@@ -138,23 +164,11 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [view])
 
-  // Load history dari localStorage saat mount
+  // Load history dari localStorage saat mount (hanya item valid & belum kedaluwarsa 24 jam)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(HISTORY_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) {
-          const now = Date.now()
-          const filtered = parsed.filter((item) => {
-            const expiresAt = item.expiresAt || (item.createdAt ? item.createdAt + SESSION_TTL_MS : 0)
-            return now < expiresAt
-          })
-          // Simpan kembali hasil saringan ke localStorage
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered))
-          setAuditHistory(filtered)
-        }
-      }
+      const valid = getValidHistory()
+      setAuditHistory(valid)
     } catch {}
     setIsHistoryLoaded(true)
   }, [])
@@ -390,23 +404,27 @@ export default function Home() {
         const totalSettlement = result.summary?.settlementAmount || 0
         const name = fileName || 'laporan-penjualan.xlsx'
 
-        // Cek apakah file dengan nama yang sama masih tersimpan di Riwayat 24 Jam
-        const existingHistoryItem = auditHistory.find((h) => h.fileName === name)
+        // Cek apakah file dengan nama yang sama masih aktif di riwayat valid
+        // (belum dihapus dari popup & belum lewat 24 jam sejak createdAt)
+        const validHistory = getValidHistory()
+        const existingHistoryItem = validHistory.find((h) => h.fileName === name)
 
         if (existingHistoryItem) {
           // File sudah ada di riwayat (belum dihapus): JANGAN tambahkan baris baru.
           // Langsung muat item riwayat yang sudah ada (pertahankan HPP yang diisi & status isUnlocked).
           const isPaid = existingHistoryItem.isPaid === true
-          setAnalysisResult({
-            summary: existingHistoryItem.summary,
-            products: existingHistoryItem.products,
-            lossProducts: existingHistoryItem.lossProducts || [],
-            fakeStarProducts: existingHistoryItem.fakeStarProducts || [],
-            claims: existingHistoryItem.claims || [],
-            returnedOrders: existingHistoryItem.returnedOrders || [],
-            detectedColumns: existingHistoryItem.detectedColumns || [],
-            hasOrderIdColumn: existingHistoryItem.hasOrderIdColumn ?? true,
-          })
+          setAnalysisResult(
+            existingHistoryItem.analysisResult || {
+              summary: existingHistoryItem.summary,
+              products: existingHistoryItem.products,
+              lossProducts: existingHistoryItem.lossProducts || [],
+              fakeStarProducts: existingHistoryItem.fakeStarProducts || [],
+              claims: existingHistoryItem.claims || [],
+              returnedOrders: existingHistoryItem.returnedOrders || [],
+              detectedColumns: existingHistoryItem.detectedColumns || [],
+              hasOrderIdColumn: existingHistoryItem.hasOrderIdColumn ?? true,
+            }
+          )
           setFileData({ fileName: existingHistoryItem.fileName })
           setHppInputs(existingHistoryItem.hppMap || {})
           setTargetProfit(existingHistoryItem.targetProfit || 0.15)
@@ -454,16 +472,32 @@ export default function Home() {
         const historyEntry = {
           id: now.toString(),
           fileName: name,
+          marketplace,
           uploadedAt: new Date().toISOString(),
           createdAt: now,
           expiresAt: now + SESSION_TTL_MS,
-          summary: result.summary,
-          products: result.products,
+          analysisResult: normalizeAnalysisResult(result),
           hppMap: hppInputs,
+          packingMap: packingCost,
           packingCost,
+          adsCost: adCost,
           adCost,
           targetProfit,
+          isUnlocked: unlocked,
+          unlocked,
           isPaid: false,
+          paid: false,
+          summary: result.summary,
+          products: result.products,
+          lossProducts: result.lossProducts || [],
+          fakeStarProducts: result.fakeStarProducts || [],
+          claims: result.claims || [],
+          returnedOrders: result.returnedOrders || [],
+          detectedColumns: result.detectedColumns || [],
+          hasOrderIdColumn: result.hasOrderIdColumn ?? true,
+          headers: fileData?.headers || [],
+          mapping: fileData?.mapping || {},
+          updatedAt: new Date().toISOString(),
         }
 
         const newHistory = [historyEntry, ...auditHistory].slice(0, MAX_HISTORY)
@@ -491,7 +525,7 @@ export default function Home() {
     const item = auditHistory.find((h) => h.id === id)
     if (!item) return
 
-    setAnalysisResult({
+    const analysis = item.analysisResult || {
       summary: item.summary,
       products: item.products,
       lossProducts: item.lossProducts || [],
@@ -500,14 +534,25 @@ export default function Home() {
       returnedOrders: item.returnedOrders || [],
       detectedColumns: item.detectedColumns || [],
       hasOrderIdColumn: item.hasOrderIdColumn ?? true,
+    }
+
+    setAnalysisResult(analysis)
+    setFileData({
+      fileName: item.fileName || '',
+      headers: item.headers || [],
+      mapping: item.mapping || {},
+      createdAt: item.createdAt || null,
     })
-    setFileData({ fileName: item.fileName })
+    setDetectedFormat(item.marketplace || 'auto')
+    setMarketplace(item.marketplace || 'auto')
     setHppInputs(item.hppMap || {})
-    setTargetProfit(item.targetProfit || 0.15)
-    setPackingCost(item.packingCost || 2000)
-    setUnlocked(item.isPaid === true)
-    setPaid(item.isPaid === true)
-    setIsAlreadyPaid(item.isPaid === true)
+    setTargetProfit(item.targetProfit ?? 0.15)
+    setPackingCost(item.packingCost != null ? item.packingCost : item.packingMap ?? 2000)
+    setAdCost(item.adCost != null ? item.adCost : item.adsCost ?? 0)
+    const isUnlocked = item.isUnlocked === true || item.isPaid === true || item.unlocked === true
+    setUnlocked(isUnlocked)
+    setPaid(isUnlocked)
+    setIsAlreadyPaid(isUnlocked)
 
     // Perpanjang sesi 24 jam saat membuka riwayat lama
     try {
@@ -534,25 +579,123 @@ export default function Home() {
 
   // Restore analisis aktif saat halaman dimuat atau di-refresh (F5).
   // Jika ada audittoko_active_id yang masih valid (belum kedaluwarsa 24 jam) di dalam
-  // daftar riwayat localStorage, otomatis muat dan tampilkan kembali halaman hasil analisis
-  // tersebut agar refresh tidak melempar pengguna ke beranda kosong.
+  // daftar riwayat localStorage dan item tersebut memiliki analysisResult, pulihkan
+  // seluruh state layar agar tampilan setelah refresh identik 100% dengan kondisi
+  // sebelum di-refresh (tidak pernah mereset ke Rp 0).
   // (Ditempatkan di sini agar handleLoadHistory sudah terdefinisi saat dependency array dievaluasi.)
   useEffect(() => {
     if (!isHistoryLoaded || restoredActiveIdRef.current) return
     try {
       const activeId = localStorage.getItem(ACTIVE_ID_KEY)
       if (!activeId) return
-      const now = Date.now()
-      const item = auditHistory.find((h) => h.id === activeId)
-      const expiresAt = item?.expiresAt || (item?.createdAt ? item.createdAt + SESSION_TTL_MS : 0)
-      if (item && now < expiresAt) {
+      const validHistory = getValidHistory()
+      const item = validHistory.find((h) => h.id === activeId)
+      // Wajib memiliki analysisResult yang valid agar tidak menampilkan Rp 0 setelah refresh
+      if (item && item.analysisResult) {
         restoredActiveIdRef.current = activeId
-        handleLoadHistory(activeId)
+        isRestoringRef.current = true
+        setView('results')
+        setFileData({
+          fileName: item.fileName || '',
+          headers: item.headers || [],
+          mapping: item.mapping || {},
+          createdAt: item.createdAt || null,
+        })
+        setDetectedFormat(item.marketplace || 'auto')
+        setMarketplace(item.marketplace || 'auto')
+        // Pulihkan seluruh hasil analisis dari localStorage (tidak pernah Rp 0)
+        setAnalysisResult(item.analysisResult)
+        setHppInputs(item.hppMap || {})
+        setPackingCost(item.packingCost != null ? item.packingCost : item.packingMap ?? 2000)
+        setAdCost(item.adCost != null ? item.adCost : item.adsCost ?? 0)
+        setTargetProfit(item.targetProfit ?? 0.15)
+        const isUnlocked = item.isUnlocked === true || item.isPaid === true || item.unlocked === true
+        setUnlocked(isUnlocked)
+        setPaid(isUnlocked)
+        setIsAlreadyPaid(isUnlocked)
+        setExpiresAt(item.expiresAt || Date.now() + SESSION_TTL_MS)
+        setActiveHistoryId(activeId)
+        // Simpan kembali ID aktif agar tahan refresh (F5)
+        try { localStorage.setItem(ACTIVE_ID_KEY, activeId) } catch {}
       } else {
         localStorage.removeItem(ACTIVE_ID_KEY)
       }
     } catch {}
-  }, [isHistoryLoaded, auditHistory, handleLoadHistory])
+  }, [isHistoryLoaded])
+
+  // Simpan riwayat audit aktif (lengkap dengan analysisResult dan semua konfigurasi)
+  // ke localStorage setiap kali konten berubah, agar refresh (F5) tidak menghilangkan data.
+  // Terjadi saat analysisResult terbentuk/diperbarui (upload, mengetik HPP, biaya packing,
+  // biaya iklan, target profit, maupun saat status isUnlocked berubah menjadi true).
+  //
+  // PENTING: Hanya memperbarui (update) item riwayat yang sudah ada berdasarkan
+  // activeHistoryId. TIDAK PERNAH membuat item riwayat baru di sini. Item baru hanya
+  // boleh dibuat 1 kali pada handleFileProcessed saat fileName belum ada di riwayat.
+  useEffect(() => {
+    if (!isHistoryLoaded || !analysisResult || !fileData || !activeHistoryId) return
+    const existingItem = auditHistoryRef.current.find((h) => h.id === activeHistoryId)
+    if (!existingItem) return
+
+    const ar = analysisResult
+    const item = {
+      id: activeHistoryId,
+      fileName: fileData.fileName || existingItem.fileName || '',
+      headers: fileData.headers || [],
+      mapping: fileData.mapping || {},
+      marketplace,
+      uploadedAt: existingItem.uploadedAt || new Date().toISOString(),
+      createdAt: existingItem.createdAt || Date.now(),
+      expiresAt: expiresAt || existingItem.expiresAt || Date.now() + SESSION_TTL_MS,
+      analysisResult: ar,
+      hppMap: hppInputs,
+      packingMap: packingCost,
+      packingCost,
+      adsCost: adCost,
+      adCost,
+      targetProfit,
+      isUnlocked: unlocked,
+      unlocked,
+      isPaid: unlocked === true,
+      paid: unlocked === true,
+      summary: ar.summary || {},
+      products: ar.products || [],
+      lossProducts: ar.lossProducts || [],
+      fakeStarProducts: ar.fakeStarProducts || [],
+      claims: ar.claims || [],
+      returnedOrders: ar.returnedOrders || [],
+      detectedColumns: ar.detectedColumns || [],
+      hasOrderIdColumn: ar.hasOrderIdColumn ?? true,
+      updatedAt: existingItem.updatedAt || new Date().toISOString(),
+    }
+
+    // Bandingkan ringkasan kunci untuk mencegah infinite loop (updatedAt diabaikan)
+    const same =
+      existingItem.hppMap === item.hppMap &&
+      existingItem.packingCost === item.packingCost &&
+      existingItem.adCost === item.adCost &&
+      existingItem.targetProfit === item.targetProfit &&
+      existingItem.isUnlocked === item.isUnlocked &&
+      existingItem.marketplace === item.marketplace &&
+      JSON.stringify(existingItem.analysisResult) === JSON.stringify(item.analysisResult)
+    if (same) return
+
+    setAuditHistory((prev) => prev.map((h) => (h.id === activeHistoryId ? item : h)))
+    // Simpan ID aktif agar layar hasil analisis tahan refresh (F5)
+    try { localStorage.setItem(ACTIVE_ID_KEY, activeHistoryId) } catch {}
+    // HISTORY_KEY ditulis oleh useEffect pendengaran auditHistory di bawah
+  }, [
+    analysisResult,
+    hppInputs,
+    packingCost,
+    adCost,
+    targetProfit,
+    unlocked,
+    marketplace,
+    activeHistoryId,
+    fileData,
+    expiresAt,
+    isHistoryLoaded,
+  ])
 
   const handleDeleteHistory = useCallback((id) => {
     setAuditHistory((prev) => prev.filter((h) => h.id !== id))

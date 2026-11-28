@@ -1458,13 +1458,21 @@ initShopeeDeductionColumns()
     const orderStatus = getStr(row, 'status', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status', 'Status Settlement', 'status settlement'])
     const statusClass = classifyOrderStatus(orderStatus)
 
-    // Status BATAL â†’ abaikan sepenuhnya: tidak dihitung omzet, dana cair, maupun produk
-    if (statusClass === 'cancelled') {
+    // Flag eksklusif per baris: satu baris hanya boleh satu kategori
+    const isBatal = statusClass === 'cancelled'
+    const isRetur = statusClass === 'returned' || safeRefund > 0
+    const isSelesai = !isBatal && !isRetur
+
+    // BARIS BATAL â†’ abaikan 100% dari seluruh perhitungan angka:
+    // 0 masuk ke Omzet Kotor, 0 masuk ke Potongan, 0 masuk ke Dana Cair, 0 masuk ke Retur.
+    if (isBatal) {
       continue
     }
 
-    // Status RETUR / REFUND â†’ masukkan HANYA ke ringkasan Pesanan Retur, lalu skip
-    if (statusClass === 'returned' || safeRefund > 0) {
+    // BARIS RETUR / PENGEMBALIAN DANA â†’ masukkan HANYA ke returnedOrders dan totalReturnLoss.
+    // DILARANG menjumlahkan harga produk atau penghasilan ke Total Omzet Kotor,
+    // Total Potongan Marketplace, maupun Total Dana Bersih Cair.
+    if (isRetur) {
       const usedDeductionCols = new Set()
       let lostFeeAmount = 0
       deductionColumns.forEach((dc) => {
@@ -1490,6 +1498,11 @@ initShopeeDeductionColumns()
       })
       totalRefundCosts += lostFeeAmount
       continue // Jangan masukkan baris retur ke tabel produk sukses
+    }
+
+    // Dari sini ke bawah: HANYA baris berstatus SELESAI yang diproses
+    if (!isSelesai) {
+      continue
     }
 
     // Semua biaya potongan Shopee baru dimasukkan ke total deductions
