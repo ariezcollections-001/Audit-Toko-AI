@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { formatRupiah } from '../lib/analysis'
+import { formatRupiah } from '../lib/analysis.cjs'
 import { DollarSign, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 
 export default function HppInputTable({

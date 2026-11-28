@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { formatRupiah, formatPercent, calculateRecommendedPrice } from '../lib/analysis'
+import { formatRupiah, formatPercent, calculateRecommendedPrice } from '../lib/analysis.cjs'
 import { AlertTriangle, Truck, Lock } from 'lucide-react'
 
 export default function ProfitLeakTable({

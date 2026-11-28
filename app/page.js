@@ -9,7 +9,7 @@ import ResultsSection from './components/ResultsSection'
 import Footer from './components/Footer'
 import AuditHistoryList from './components/AuditHistoryList'
 import AiChatWidget from './components/AiChatWidget'
-import { calculateAnalysis, smartMapHeaders, formatRupiah } from './lib/analysis'
+import { calculateAnalysis, smartMapHeaders, formatRupiah } from './lib/analysis.cjs'
 import './globals.css'
 
 const HISTORY_KEY = 'audit_history_list'

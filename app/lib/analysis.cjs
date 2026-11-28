@@ -1,14 +1,5 @@
-import XLSX from 'xlsx-js-style'
-import {
-  ALIASES,
-  ROOT_RULES,
-  METADATA_WHITELIST,
-  normalizeHeaderDeep,
-  scoreRootRule,
-  isCostHeader,
-  isMetadataHeader,
-  buildMergedAliases
-} from './columnAliases'
+﻿const XLSX = require('xlsx-js-style')
+const { ALIASES, ROOT_RULES, METADATA_WHITELIST, normalizeHeaderDeep, scoreRootRule, isCostHeader, isMetadataHeader, isNonFinancialColumn, buildMergedAliases } = require('./columnAliases.cjs')
 
 /* ============================================================================
    SMART HEADER MAPPER - Multi-marketplace column recognition
@@ -100,7 +91,7 @@ const COLUMN_ALIASES = {
   // --- Kolom harga jual produk dari file Excel pelanggan ---
   // Sumber utama "Total Omzet Kotor" (grossSales): kolom subtotal baris
   // ('Total Harga Produk' / 'Subtotal Produk'; harga per pcs = total / qty).
-  // CATATAN: 'total penghasilan' / 'penghasilan' SENGaja JANGAN dimasukkan di sini â€”
+  // CATATAN: 'total penghasilan' / 'penghasilan' SENGaja JANGAN dimasukkan di sini ├óÔé¼ÔÇØ
   // kolom penghasilan hanya boleh milik settlementAmount (netPayout / Total Dana Bersih Cair),
   // agar Total Omzet Kotor tidak ikut mengambil nilai Total Penghasilan.
   productPrice: [
@@ -656,7 +647,7 @@ function getMarketplaceAliases(marketplace) {
 
 
 
-export function normalizeHeader(h) {
+function normalizeHeader(h) {
   // Ubah semua pemisah simbol (_ - . / \) menjadi spasi, lalu collapse spasi ganda
   // menjadi spasi tunggal agar header seperti "Gross_Product_Sales" cocok dengan
   // alias kamus "gross product sales".
@@ -696,7 +687,7 @@ function scoreMatch(header, alias) {
   return 0
 }
 
-export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
+function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   const headers = rawHeaders.map(h => String(h).trim())
   const normalizedDeep = headers.map(normalizeHeaderDeep) // { cleanFull, cleanBase, original }
   const mapping = {}
@@ -707,7 +698,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   const aliases = buildMergedAliases(marketplace)
 
   // Ambang keyakinan untuk kolom wajib (productPrice & settlementAmount).
-  // Jika di bawah 80, dianggap tidak yakin â†’ memicu Fallback Manual Mapping.
+  // Jika di bawah 80, dianggap tidak yakin ├óÔÇáÔÇÖ memicu Fallback Manual Mapping.
   const STRICT_CONFIDENCE = 80
   const REQUIRED_COLUMNS = ['productPrice', 'settlementAmount']
   const requiredColumnConfidence = {}
@@ -715,7 +706,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   // ============================================================================
   // FASE 1: Cocokkan setiap kunci kamus terhadap header menggunakan kedua
   // versi normalisasi (cleanFull & cleanBase) + aturan pola akar kata.
-  // Kolom yang dikenal mendapatkan skor â‰¥ 85 (alias eksak 100, substring 85,
+  // Kolom yang dikenal mendapatkan skor ├óÔÇ░┬Ñ 85 (alias eksak 100, substring 85,
   // pola akar kata 90), sehingga kotak kuning tidak muncul secara tidak perlu.
   // ============================================================================
   for (const [key, aliasList] of Object.entries(aliases)) {
@@ -770,7 +761,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
 
   // ============================================================================
   // FASE 2: Sisa kolom nominal yang mengandung kata kunci potongan/beban
-  // (biaya, fee, komisi, diskon, dll) â†’ masuk ke rincian potongan (cost_*)
+  // (biaya, fee, komisi, diskon, dll) ├óÔÇáÔÇÖ masuk ke rincian potongan (cost_*)
   // dan TIDAK pernah memicu kotak kuning.
   // ============================================================================
   for (let i = 0; i < headers.length; i++) {
@@ -799,7 +790,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   }
 
   // ============================================================================
-  // FASE 3: Metadata non-keuangan (daftar putih) â†’ meta_*, diabaikan dari
+  // FASE 3: Metadata non-keuangan (daftar putih) ├óÔÇáÔÇÖ meta_*, diabaikan dari
   // unrecognizedColumns dan tidak pernah memicu kotak kuning.
   // ============================================================================
   for (let i = 0; i < headers.length; i++) {
@@ -821,24 +812,24 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
 /**
  * Parses virtually any number format into a clean Number.
  * Handles:
- *   - "Rp 150.000"       â†’ 150000
- *   - "Rp150.000"        â†’ 150000
- *   - "150.000"          â†’ 150000
- *   - "150,000.00"       â†’ 150000
- *   - "(15.000)"         â†’ -15000   (accounting negative)
- *   - "-15000"           â†’ -15000
- *   - "150000"           â†’ 150000
- *   - null / undefined / "" â†’ 0
- *   - Anything else      â†’ 0 (never NaN)
+ *   - "Rp 150.000"       ├óÔÇáÔÇÖ 150000
+ *   - "Rp150.000"        ├óÔÇáÔÇÖ 150000
+ *   - "150.000"          ├óÔÇáÔÇÖ 150000
+ *   - "150,000.00"       ├óÔÇáÔÇÖ 150000
+ *   - "(15.000)"         ├óÔÇáÔÇÖ -15000   (accounting negative)
+ *   - "-15000"           ├óÔÇáÔÇÖ -15000
+ *   - "150000"           ├óÔÇáÔÇÖ 150000
+ *   - null / undefined / "" ├óÔÇáÔÇÖ 0
+ *   - Anything else      ├óÔÇáÔÇÖ 0 (never NaN)
  */
-export function parseNumberUniversal(val) {
+function parseNumberUniversal(val) {
   if (val === null || val === undefined || val === '') return 0
   if (typeof val === 'number') return isNaN(val) ? 0 : val
 
   const s = String(val).trim()
   if (s === '') return 0
 
-  // Detect accounting-style negative: (15.000) â†’ -15000
+  // Detect accounting-style negative: (15.000) ├óÔÇáÔÇÖ -15000
   let isNegative = /^\(\s*[\d.,]+\s*\)$/.test(s)
 
   // Remove all non-numeric chars except digits, comma, dot, minus
@@ -849,16 +840,16 @@ export function parseNumberUniversal(val) {
     cleaned = '-' + cleaned
   }
 
-  // Indonesian format: "150.000" â†’ thousand separator dot
-  // US format: "150,000.00" â†’ comma thousand, dot decimal
+  // Indonesian format: "150.000" ├óÔÇáÔÇÖ thousand separator dot
+  // US format: "150,000.00" ├óÔÇáÔÇÖ comma thousand, dot decimal
   // Strategy: remove dots (thousand sep), replace comma with dot (decimal)
   const hasDot = cleaned.includes('.')
   const hasComma = cleaned.includes(',')
 
   if (hasDot && hasComma) {
     // "1.234,56" (EU/ID) or "1,234.56" (US)
-    // If last comma is after last dot â†’ EU/ID: 1.234,56
-    // If last dot is after last comma â†’ US: 1,234.56
+    // If last comma is after last dot ├óÔÇáÔÇÖ EU/ID: 1.234,56
+    // If last dot is after last comma ├óÔÇáÔÇÖ US: 1,234.56
     const lastDot = cleaned.lastIndexOf('.')
     const lastComma = cleaned.lastIndexOf(',')
     if (lastComma > lastDot) {
@@ -870,8 +861,8 @@ export function parseNumberUniversal(val) {
     }
   } else if (hasDot && !hasComma) {
     // Could be "150.000" (ID thousand) or "150.00" (US decimal)
-    // Heuristic: if dot is followed by exactly 2 digits at end â†’ decimal
-    // Otherwise â†’ thousand separator, remove dots
+    // Heuristic: if dot is followed by exactly 2 digits at end ├óÔÇáÔÇÖ decimal
+    // Otherwise ├óÔÇáÔÇÖ thousand separator, remove dots
     const parts = cleaned.split('.')
     if (parts.length === 2 && parts[1].length === 2 && parts[0].length <= 3) {
       // Likely decimal like "150.00"
@@ -881,7 +872,7 @@ export function parseNumberUniversal(val) {
       cleaned = cleaned.replace(/\./g, '')
     }
   } else if (hasComma && !hasDot) {
-    // "150,000" â†’ could be thousand (US) or decimal (EU)
+    // "150,000" ├óÔÇáÔÇÖ could be thousand (US) or decimal (EU)
     const parts = cleaned.split(',')
     if (parts.length === 2 && parts[1].length === 2) {
       // Decimal like "150,00"
@@ -922,7 +913,7 @@ const HEADER_KEYWORDS = [
  * yang berisi kata kunci kolom transaksi. Mengembalikan index baris header
  * atau -1 jika tidak ditemukan.
  */
-export function findHeaderRow(sheet, maxRows = 15) {
+function findHeaderRow(sheet, maxRows = 15) {
   if (!sheet || !sheet['!ref']) return -1
 
   const range = XLSX.utils.decode_range(sheet['!ref'])
@@ -963,7 +954,7 @@ export function findHeaderRow(sheet, maxRows = 15) {
  * Sheet yang berisi 'Penyesuaian' atau 'Adjustment' akan ditangani secara khusus
  * untuk menambahkan data biaya penyesuaian ke dalam klaim.
  */
-export function scanAllSheets(workbook) {
+function scanAllSheets(workbook) {
   const allRecords = []
   const allHeaders = new Set()
   const sheetInfo = []
@@ -1012,7 +1003,7 @@ export function scanAllSheets(workbook) {
 /**
  * Validasi file sebelum diproses. Mengembalikan { valid, errorMessage }
  */
-export function validateExcelFile(file) {
+function validateExcelFile(file) {
   if (!file) {
     return { valid: false, errorMessage: 'Tidak ada file yang dipilih.' }
   }
@@ -1033,9 +1024,9 @@ export function validateExcelFile(file) {
 /**
  * Warning message untuk file non-Excel
  */
-export const NON_EXCEL_WARNING_MESSAGE = 'File ini bukan laporan rincian pesanan Excel (.xlsx/.csv). Silakan unduh file rincian berformat Excel dari menu Penghasilan / Keuangan Seller Center Anda.'
+const NON_EXCEL_WARNING_MESSAGE = 'File ini bukan laporan rincian pesanan Excel (.xlsx/.csv). Silakan unduh file rincian berformat Excel dari menu Penghasilan / Keuangan Seller Center Anda.'
 
-export function parseExcelFile(file) {
+function parseExcelFile(file) {
   return new Promise((resolve, reject) => {
     // Validasi file terlebih dahulu
     const validation = validateExcelFile(file)
@@ -1079,7 +1070,7 @@ export function parseExcelFile(file) {
   })
 }
 
-export function parseHppFile(file) {
+function parseHppFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -1109,16 +1100,16 @@ export function parseHppFile(file) {
   })
 }
 
-export const DEFAULT_HPP_RATIO = 0
-export const DEFAULT_TARGET_PROFIT = 0.15
-export const FAKE_STAR_MARGIN_THRESHOLD = 0.05
+const DEFAULT_HPP_RATIO = 0
+const DEFAULT_TARGET_PROFIT = 0.15
+const FAKE_STAR_MARGIN_THRESHOLD = 0.05
 
 /**
  * Hitung Harga Jual Minimal Baru dengan rumus:
  * Harga Baru = HPP / (1 - Rasio_Potongan_Marketplace - Target_Profit)
  * Bulatkan ke atas ke angka berakhiran .900 (contoh: 547900 -> 547900, 548000 -> 548900)
  */
-export function calculateRecommendedPrice(totalModalUnit, feeRate, targetProfit) {
+function calculateRecommendedPrice(totalModalUnit, feeRate, targetProfit) {
   if (!totalModalUnit || totalModalUnit <= 0) return null
   const denominator = Math.max(0.1, 1 - feeRate - targetProfit)
   if (denominator <= 0) return null
@@ -1133,7 +1124,7 @@ export function calculateRecommendedPrice(totalModalUnit, feeRate, targetProfit)
 /**
  * Kolom yang nilainya SUDAH merupakan total untuk seluruh qty pada satu baris pesanan
  * (contoh: Total Harga Produk, Subtotal Produk, Total Pembayaran). Nilai di kolom ini
- * JANGAN boleh dikalikan qty/Jumlah lagi â€” ambil nominal baris apa adanya.
+ * JANGAN boleh dikalikan qty/Jumlah lagi ├óÔé¼ÔÇØ ambil nominal baris apa adanya.
  * Hanya kolom harga SATUAN (Harga Produk / Harga Satuan) yang baru dikalikan qty untuk
  * mendapatkan total baris.
  */
@@ -1165,11 +1156,11 @@ function classifyOrderStatus(statusStr) {
   return 'valid'
 }
 
-export function calculateAnalysis(rows, mapping, hppInputs = {}, marketplace = 'auto', targetProfit = DEFAULT_TARGET_PROFIT, packingCost = 0, adCost = 0) {
+function calculateAnalysis(rows, mapping, hppInputs = {}, marketplace = 'auto', targetProfit = DEFAULT_TARGET_PROFIT, packingCost = 0, adCost = 0) {
   const products = {}
   const claims = []
   const returnedOrders = []
-  // Order ID â†’ selisih ongkir pertama (untuk deduplikasi ongkir tingkat order yang di-duplikasi di semua baris produk)
+  // Order ID ├óÔÇáÔÇÖ selisih ongkir pertama (untuk deduplikasi ongkir tingkat order yang di-duplikasi di semua baris produk)
   const shippingDiffByOrderId = new Map()
   let totalRefundCosts = 0
   let globalDeductions = 0
@@ -1394,7 +1385,7 @@ initShopeeDeductionColumns()
     // Prioritas ambil dari 'Total Harga Produk' / 'Subtotal Produk' (grossSales),
     // lalu baru harga satuan ('Harga Produk' / 'Harga Jual' dst).
     const productPrice = get(row, 'productPrice', ['Total Harga Produk', 'Subtotal Produk', 'Harga Asli Produk', 'Harga Produk', 'Harga Jual Produk', 'Harga Jual', 'product price', 'price', 'harga jual'])
-    // 'jumlah' (exact) selain 'jumlah produk' dan 'qty' â€” pencarian case-insensitive
+    // 'jumlah' (exact) selain 'jumlah produk' dan 'qty' ├óÔé¼ÔÇØ pencarian case-insensitive
     // di atas memastikan kolom 'Jumlah' dari Excel selalu terbaca.
     const qty = get(row, 'quantity', ['Quantity', 'qty', 'jumlah', 'jumlah produk', 'qty terjual', 'jumlah pcs']) || 1
     const estShipping = get(row, 'shippingEstimate', ['Estimasi Ongkir', 'estimated shipping'])
@@ -1452,7 +1443,7 @@ initShopeeDeductionColumns()
     const safeExtraCosts = isFinite(extraCosts) ? extraCosts : 0
 
     // =========================================================================
-    // FILTER STATUS PALING AWAL â€” sebelum perhitungan totalGrossSales dan produk
+    // FILTER STATUS PALING AWAL ├óÔé¼ÔÇØ sebelum perhitungan totalGrossSales dan produk
     // =========================================================================
     // Deteksi status pesanan dari kolom Status / Status Settlement
     const orderStatus = getStr(row, 'status', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status', 'Status Settlement', 'status settlement'])
@@ -1463,13 +1454,13 @@ initShopeeDeductionColumns()
     const isRetur = statusClass === 'returned' || safeRefund > 0
     const isSelesai = !isBatal && !isRetur
 
-    // BARIS BATAL â†’ abaikan 100% dari seluruh perhitungan angka:
+    // BARIS BATAL ├óÔÇáÔÇÖ abaikan 100% dari seluruh perhitungan angka:
     // 0 masuk ke Omzet Kotor, 0 masuk ke Potongan, 0 masuk ke Dana Cair, 0 masuk ke Retur.
     if (isBatal) {
       continue
     }
 
-    // BARIS RETUR / PENGEMBALIAN DANA â†’ masukkan HANYA ke returnedOrders dan totalReturnLoss.
+    // BARIS RETUR / PENGEMBALIAN DANA ├óÔÇáÔÇÖ masukkan HANYA ke returnedOrders dan totalReturnLoss.
     // DILARANG menjumlahkan harga produk atau penghasilan ke Total Omzet Kotor,
     // Total Potongan Marketplace, maupun Total Dana Bersih Cair.
     if (isRetur) {
@@ -1511,12 +1502,12 @@ initShopeeDeductionColumns()
       + safeShippingSavingProgram + safePremium + safeTax + safeAdditionalServiceFee
 
     // Total Penghasilan (settlementAmount) sudah merupakan nilai bersih (net) setelah
-    // semua potongan marketplace. Jangan kurangi totalDeductions lagi â€” hanya kurangi refund.
+    // semua potongan marketplace. Jangan kurangi totalDeductions lagi ├óÔé¼ÔÇØ hanya kurangi refund.
     const netSettlement = safeSettlement - safeRefund
     const units = Math.max(safeQty, 1)
     // --- Tentukan apakah harga produk yang terbaca adalah TOTAL BARIS (sudah untuk seluruh qty)
     // atau HARGA SATUAN (per pcs). Kolom total baris (Total Harga Produk, Subtotal Produk,
-    // Total Pembayaran, dll.) SUDAH merupakan jumlah untuk seluruh qty pada baris tersebut â€”
+    // Total Pembayaran, dll.) SUDAH merupakan jumlah untuk seluruh qty pada baris tersebut ├óÔé¼ÔÇØ
     // JANGAN dikalikan qty lagi. Hanya kalikan qty apabila kolomnya adalah harga satuan
     // (Harga Produk / Harga Satuan) dan file TIDAK memiliki kolom total baris.
     //
@@ -1587,7 +1578,7 @@ initShopeeDeductionColumns()
 
     // Deteksi offset ongkir: jika Potongan Ongkos Kirim dari Shopee
     // sudah menutupi Ongkos Kirim yang Dibayarkan ke Jasa Kirim,
-    // subtotal ongkir Rp0 â†’ tidak dianggap kerugian ongkir penjual.
+    // subtotal ongkir Rp0 ├óÔÇáÔÇÖ tidak dianggap kerugian ongkir penjual.
     const netShippingCost = safeShippingFee + safeShippingPaidToCourier - safeShippingDeduction
     const shippingOffset = Math.abs(netShippingCost) < 1000 // toleransi Rp1.000
 
@@ -1619,7 +1610,7 @@ initShopeeDeductionColumns()
     if (orderId) {
       const prevDiff = shippingDiffByOrderId.get(orderId)
       if (prevDiff !== undefined && prevDiff === selisihOngkir) {
-        // Duplikasi identik â†’ skip
+        // Duplikasi identik ├óÔÇáÔÇÖ skip
       } else {
         shippingDiffByOrderId.set(orderId, selisihOngkir)
         // Masukkan ke claims hanya jika selisih ongkir beban penjual nyata (> 0)
@@ -1689,7 +1680,7 @@ initShopeeDeductionColumns()
       if (orderId) {
         const prevDiff = shippingDiffByOrderId.get(orderId)
         if (prevDiff !== undefined && prevDiff === selisihOngkir) {
-          // Sudah diproses di blok di atas â†’ skip
+          // Sudah diproses di blok di atas ├óÔÇáÔÇÖ skip
         } else {
           if (!deductionBreakdownMap['shippingDifference']) {
             deductionBreakdownMap['shippingDifference'] = { label: 'Selisih Ongkir', amount: 0 }
@@ -1899,7 +1890,7 @@ initShopeeDeductionColumns()
     totalGross: safeReduce(dedupedProductList, 'grossRevenue'),
     // Langkah 1: Pecahan potongan marketplace per kolom asli (hanya entri > 0)
     deductionBreakdown: Object.values(deductionBreakdownMap).filter(d => d.amount > 0),
-    // Langkah 1: Total selisih potongan (Omzet Kotor âˆ’ Dana Bersih Cair)
+    // Langkah 1: Total selisih potongan (Omzet Kotor ├ó╦åÔÇÖ Dana Bersih Cair)
     totalGrossDeduction: safeReduce(dedupedProductList, 'grossRevenue') - baseSettlementAmount,
     // Langkah 3: Total biaya iklan/ads periode ini (opsional, diteruskan dari ResultsSection)
     totalAdCost: adCost,
@@ -1926,7 +1917,7 @@ initShopeeDeductionColumns()
     fakeStarCount: fakeStarProducts.length,
     totalRefundCosts: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
     biayaHangusRetur: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
-    // Beban retur (total return loss) — hanya baris isReturned yang terakumulasi di sini,
+    // Beban retur (total return loss) ÔÇö hanya baris isReturned yang terakumulasi di sini,
     // memotong Laba Bersih Toko. Baris isCancelled tidak berkontribusi apa pun.
     totalReturnLoss: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
     shippingDifferenceTotal: summaryShippingDiffTotal,
@@ -1992,7 +1983,7 @@ initShopeeDeductionColumns()
   return { summary, products: productList, lossProducts, fakeStarProducts, claims, returnedOrders, hasOrderIdColumn, detectedColumns }
 }
 
-export function generateMassUpdateExcel(
+function generateMassUpdateExcel(
   products,
   targetProfit = 0.15,
   packingCost = 0,
@@ -2412,12 +2403,12 @@ export function generateMassUpdateExcel(
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true })
 }
 
-export function formatRupiah(amount) {
+function formatRupiah(amount) {
   const n = Math.round(amount || 0)
   return 'Rp ' + n.toLocaleString('id-ID')
 }
 
-export function formatPercent(val) {
+function formatPercent(val) {
   const n = isFinite(val) ? val : 0
   return `${n.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 }
@@ -2468,7 +2459,7 @@ const FIXED_PRODUCTS = [
    Generate 100 transaksi simulasi untuk setiap marketplace
    ============================================================================ */
 
-export function generateExampleData(marketplace = 'shopee') {
+function generateExampleData(marketplace = 'shopee') {
   const data = []
   const baseOrderId = marketplace === 'shopee' ? 1000001 :
     marketplace === 'tiktok' ? 2000001 :
@@ -2587,7 +2578,7 @@ export function generateExampleData(marketplace = 'shopee') {
   return data
 }
 
-export function downloadExampleFile(marketplace = 'shopee') {
+function downloadExampleFile(marketplace = 'shopee') {
   const data = generateExampleData(marketplace)
   const columns = MARKETPLACE_COLUMNS[marketplace] || MARKETPLACE_COLUMNS.shopee
   // Convert each data object to array matching column order for aoa_to_sheet
@@ -2612,11 +2603,27 @@ export function downloadExampleFile(marketplace = 'shopee') {
    HELPER FUNCTIONS
    ============================================================================ */
 
-export function getMarketplaceColumnNames(marketplace = 'shopee') {
+function getMarketplaceColumnNames(marketplace = 'shopee') {
   return MARKETPLACE_COLUMNS[marketplace] || MARKETPLACE_COLUMNS.shopee
 }
 
-export function getMarketplaceNames() {
+function getMarketplaceNames() {
   return ['Shopee', 'TikTok Shop', 'Tokopedia', 'Lazada', 'Bukalapak']
 }
 
+module.exports = {
+  normalizeHeader,
+  smartMapHeaders,
+  parseNumberUniversal,
+  findHeaderRow,
+  scanAllSheets,
+  validateExcelFile,
+  NON_EXCEL_WARNING_MESSAGE,
+  parseExcelFile,
+  parseHppFile,
+  DEFAULT_HPP_RATIO,
+  DEFAULT_TARGET_PROFIT,
+  FAKE_STAR_MARGIN_THRESHOLD,
+  calculateRecommendedPrice,
+  calculateAnalysis
+};

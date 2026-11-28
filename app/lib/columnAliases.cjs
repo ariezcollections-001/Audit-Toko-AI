@@ -1,34 +1,34 @@
-/* ============================================================================
+﻿/* ============================================================================
    KAMUS RAKASASA 10 GENERASI - "Tahan Banting 10 Generasi"
    Alias kolom untuk seluruh marketplace Indonesia & global
    (Shopee, TikTok Shop, Tokopedia, Lazada, Bukalapak, Blibli, Zalora
    serta software akuntansi / POS / ERP) dan aturan pola akar kata.
    ============================================================================ */
 
-export const PUNCTUATION_RE = /[_\-/\.:;#*\[\]()]/g
+const PUNCTUATION_RE = /[_\-/\.:;#*\[\]()]/g
 
 /* ---------- 1. Normalisasi Berlapis Sebelum Pencocokan ---------- */
 
 /**
  * Kompatibilitas mundur: mengembalikan cleanFull (string).
- * Seluruh teks dibersihkan termasuk teks di dalam tanda kurung (…).
+ * Seluruh teks dibersihkan termasuk teks di dalam tanda kurung (ÔÇª).
  */
-export function normalizeHeader(h) {
+function normalizeHeader(h) {
   return normalizeHeaderDeep(h).cleanFull
 }
 
 /**
  * Dual-version normalisasi.
- *   cleanFull : seluruh teks bersih, isi kurung (…) dipertahankan.
- *   cleanBase : teks utama, seluruh isi kurung (…) dihilangkan.
+ *   cleanFull : seluruh teks bersih, isi kurung (ÔÇª) dipertahankan.
+ *   cleanBase : teks utama, seluruh isi kurung (ÔÇª) dihilangkan.
  *   original  : nama header asli (trim).
  */
-export function normalizeHeaderDeep(h) {
+function normalizeHeaderDeep(h) {
   const original = String(h ?? '').trim()
   const lowered = original.toLowerCase()
   // cleanFull: tanda baca (termasuk kurung) -> spasi; isi kurung dipertahankan
   let cleanFull = lowered.replace(PUNCTUATION_RE, ' ').replace(/\s+/g, ' ').trim()
-  // cleanBase: hapus isi kurung (…), lalu bersihkan tanda baca sisa
+  // cleanBase: hapus isi kurung (ÔÇª), lalu bersihkan tanda baca sisa
   let cleanBase = lowered
     .replace(/\([^)]*\)/g, ' ')
     .replace(PUNCTUATION_RE, ' ')
@@ -39,7 +39,7 @@ export function normalizeHeaderDeep(h) {
 
 /* ---------- 2. Skor pencocokan ---------- */
 
-export function scoreMatch(header, alias) {
+function scoreMatch(header, alias) {
   if (!header || !alias) return 0
   if (header === alias) return 100
   if (header.includes(alias)) return 85
@@ -67,7 +67,7 @@ export function scoreMatch(header, alias) {
 
 /* ---------- 3. Kamus raksasa 10 generasi ---------- */
 
-export const ALIASES = {}
+const ALIASES = {}
 
 function _add(key, list) {
   if (!ALIASES[key]) ALIASES[key] = []
@@ -184,7 +184,7 @@ _add('shippingActual', [
 // ---------- 4. Kata kunci potongan/beban (deductionBreakdown) ----------
 // Setiap kolom nominal yang mengandung kata kunci ini otomatis masuk ke
 // rincian potongan (cost_*) dan TIDAK pernah memicu kotak kuning.
-export const COST_KEYWORDS = [
+const COST_KEYWORDS = [
   'biaya', 'potongan', 'fee', 'charge', 'komisi', 'commission', 'admin',
   'administrasi', 'layanan', 'service', 'afiliasi', 'affiliate', 'kreator',
   'creator', 'voucher', 'kupon', 'coupon', 'diskon', 'discount', 'subsidi',
@@ -205,7 +205,7 @@ export const COST_KEYWORDS = [
 
 // ---------- 5. Daftar putih metadata non-keuangan ----------
 // Diabaikan dari unrecognizedColumns dan tidak pernah memicu kotak kuning.
-export const METADATA_WHITELIST = [
+const METADATA_WHITELIST = [
   'tanggal', 'date', 'waktu', 'time', 'jam', 'created', 'completed', 'paid',
   'shipped', 'kurir', 'courier', 'ekspedisi', 'jasa kirim', 'metode',
   'payment method', 'catatan', 'note', 'remark', 'pembeli', 'buyer',
@@ -215,8 +215,27 @@ export const METADATA_WHITELIST = [
   'cabang', 'branch', 'mata uang', 'currency', 'no', 'nomor urut', 'index'
 ]
 
+// ---------- 5b. Blacklist mutlak kolom non-finansial ----------
+
+const NON_FINANCIAL_KEYWORDS = [
+  'waktu', 'tanggal', 'date', 'time', 'created', 'settled', 'completed',
+  'paid', 'shipped', 'periode', 'no.', 'nomor', 'id', 'kode', 'code',
+  'resi', 'awb', 'sku', 'metode', 'method', 'status', 'type', 'variasi',
+  'variation', 'currency', 'mata uang'
+];
+
+/**
+ * Cek apakah header adalah kolom non-finansial yang harus diblokir
+ * dari ekstraksi angka Rupiah dan deductionBreakdown.
+ */
+function isNonFinancialColumn(header) {
+  if (!header) return false
+  const h = String(header).toLowerCase()
+  return NON_FINANCIAL_KEYWORDS.some(kw => h.includes(kw.toLowerCase()))
+}
+
 // ---------- 6. Aturan pola akar kata (root word matching) ----------
-export const ROOT_RULES = {
+const ROOT_RULES = {
   orderId: {
     kind: 'and',
     group1: ['order', 'pesanan', 'transaksi', 'transaction', 'invoice', 'faktur', 'resi', 'awb'],
@@ -264,7 +283,7 @@ export const ROOT_RULES = {
  * Evaluasi aturan pola akar kata terhadap teks yang sudah dinormalisasi.
  * Mengembalikan rule.score jika cocok, 0 jika tidak.
  */
-export function scoreRootRule(text, rule) {
+function scoreRootRule(text, rule) {
   let matched = false
   if (rule.kind === 'any') {
     matched = rule.words.some(w => text.includes(w))
@@ -278,7 +297,7 @@ export function scoreRootRule(text, rule) {
 }
 
 // ---------- 7. Gabungan kamus semua marketplace ----------
-export function buildMergedAliases(marketplace = 'auto') {
+function buildMergedAliases(marketplace = 'auto') {
   // Kamus ALIASES sudah berisi seluruh variasi semua marketplace, sehingga
   // digunakan untuk semua mode (auto maupun spesifik) agar pencocokan
   // lintas marketplace selalu aktif.
@@ -292,14 +311,14 @@ export function buildMergedAliases(marketplace = 'auto') {
 /**
  * Cek apakah header mengandung kata kunci potongan/beban (biaya/fee/dll).
  */
-export function isCostHeader(header) {
+function isCostHeader(header) {
   return COST_KEYWORDS.some(kw => header.includes(kw))
 }
 
 /**
  * Cek apakah header termasuk metadata non-keuangan (daftar putih).
  */
-export function isMetadataHeader(header) {
+function isMetadataHeader(header) {
   const words = header.split(' ')
   for (const kw of METADATA_WHITELIST) {
     if (kw.includes(' ')) {
@@ -310,3 +329,20 @@ export function isMetadataHeader(header) {
   }
   return false
 }
+
+module.exports = {
+  PUNCTUATION_RE,
+  normalizeHeader,
+  normalizeHeaderDeep,
+  scoreMatch,
+  ALIASES,
+  COST_KEYWORDS,
+  METADATA_WHITELIST,
+  NON_FINANCIAL_KEYWORDS,
+  isNonFinancialColumn,
+  ROOT_RULES,
+  scoreRootRule,
+  buildMergedAliases,
+  isCostHeader,
+  isMetadataHeader
+};

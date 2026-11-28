@@ -15,7 +15,7 @@ import {
   Minimize2,
   Truck,
 } from 'lucide-react'
-import { formatRupiah, formatPercent, calculateRecommendedPrice, generateMassUpdateExcel } from '../lib/analysis'
+import { formatRupiah, formatPercent, calculateRecommendedPrice, generateMassUpdateExcel } from '../lib/analysis.cjs'
 import HppInputTable from './HppInputTable'
 import ProfitLeakTable from './ProfitLeakTable'
 

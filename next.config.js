@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  swcMinify: false,
 
   // ─── Security HTTP Headers (semua rute) ───
   async headers() {
@@ -27,6 +28,11 @@ const nextConfig = {
         ],
       },
     ]
+  },
+
+  webpack: (config) => {
+    config.resolve.extensions.push('.cjs')
+    return config
   },
 }
 

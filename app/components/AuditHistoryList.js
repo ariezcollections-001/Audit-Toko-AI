@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Clock, Watch, Check, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
-import { formatRupiah } from '../lib/analysis'
+import { formatRupiah } from '../lib/analysis.cjs'
 
 export default function AuditHistoryList({
   history,

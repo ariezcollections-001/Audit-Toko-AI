@@ -10,7 +10,7 @@ import {
   parseHppFile,
   validateExcelFile,
   NON_EXCEL_WARNING_MESSAGE,
-} from '../lib/analysis'
+} from '../lib/analysis.cjs'
 
 export default function UploadSection({
   marketplace,

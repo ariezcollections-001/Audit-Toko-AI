@@ -8,7 +8,7 @@ import {
   formatPercent,
   scanAllSheets,
   validateExcelFile,
-} from '../../lib/analysis'
+} from '../../lib/analysis.cjs'
 
 async function mapHeadersWithGemini(rawHeaders, marketplace) {
   const prompt = `You are a data mapping assistant for e-commerce sales reports.

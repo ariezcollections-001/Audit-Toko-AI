@@ -1,6 +1,7 @@
 {
   "name": "shopee-profit-auditor",
   "version": "1.0.0",
+  "type": "module",
   "description": "AuditToko AI - Platform analisis profit Shopee",
   "scripts": {
     "dev": "next dev",
