@@ -10,6 +10,8 @@ function HppInputTable({
   setPackingCost,
   packingCostPerProduct = {},
   onPackingCostChange,
+  packingMode = {},
+  setPackingMode,
   adCostPeriod = 0,
   onAdCostChange,
   totalAllUnits = 0,
@@ -55,7 +57,7 @@ function HppInputTable({
                 <label className="text-xs text-red-700 font-medium leading-none">Total Biaya Iklan / Ads (Rp)</label>
                 <span className="text-red-700 text-xs font-medium leading-none">Rp</span>
                 <input
-                  defaultValue={String(adCostPeriod)}
+                  value={adCostPeriod}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/[^0-9]/g, '')
                     const val = raw ? parseInt(raw) : 0
@@ -196,7 +198,7 @@ function HppInputTable({
               <div className="flex items-center gap-2">
                 <span className="text-red-700 text-sm">Rp</span>
                 <input
-                  defaultValue={String(adCostPeriod)}
+                  value={adCostPeriod}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/[^0-9]/g, '')
                     const val = raw ? parseInt(raw) : 0
@@ -472,5 +474,8 @@ export default React.memo(HppInputTable, (prev, next) => {
   if (prev.isPaid !== next.isPaid) return false
   if (prev.returnedOrders !== next.returnedOrders) return false
   if (prev.isZoomed !== next.isZoomed) return false
+  // packingCostPerProduct & packingMode diubah pengguna — harus triggers re-render
+  if (prev.packingCostPerProduct !== next.packingCostPerProduct) return false
+  if (prev.packingMode !== next.packingMode) return false
   return true
 })
