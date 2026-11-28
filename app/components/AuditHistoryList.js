@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Clock, Watch, Check, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Clock, Watch, Check, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { formatRupiah } from '../lib/analysis'
 
 export default function AuditHistoryList({
@@ -10,9 +10,11 @@ export default function AuditHistoryList({
   onDeleteHistory,
   onDeleteSelectedHistory,
   onClearAllHistory,
+  onDeleteComplete,
 }) {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const sortedHistory = [...history].sort(
     (a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)
@@ -39,17 +41,29 @@ export default function AuditHistoryList({
   }, [selectedCount, sortedHistory])
 
   const handleConfirmDeleteSelected = () => {
-    if (onDeleteSelectedHistory && selectedIds.size > 0) {
-      onDeleteSelectedHistory([...selectedIds])
-    }
-    setSelectedIds(new Set())
-    setConfirmDelete(false)
+    if (isDeleting) return
+    setIsDeleting(true)
+    setTimeout(() => {
+      if (onDeleteSelectedHistory && selectedIds.size > 0) {
+        onDeleteSelectedHistory([...selectedIds])
+      }
+      setSelectedIds(new Set())
+      setConfirmDelete(false)
+      setIsDeleting(false)
+      if (onDeleteComplete) onDeleteComplete()
+    }, 700)
   }
 
   const handleConfirmClearAll = () => {
-    onClearAllHistory()
-    setSelectedIds(new Set())
-    setConfirmDelete(false)
+    if (isDeleting) return
+    setIsDeleting(true)
+    setTimeout(() => {
+      onClearAllHistory()
+      setSelectedIds(new Set())
+      setConfirmDelete(false)
+      setIsDeleting(false)
+      if (onDeleteComplete) onDeleteComplete()
+    }, 700)
   }
 
   if (sortedHistory.length === 0) return null
@@ -180,9 +194,17 @@ export default function AuditHistoryList({
               </button>
               <button
                 onClick={hasSelection ? handleConfirmDeleteSelected : handleConfirmClearAll}
-                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                disabled={isDeleting}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Ya, Hapus Permanen
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Menghapus riwayat...
+                  </>
+                ) : (
+                  'Ya, Hapus Permanen'
+                )}
               </button>
             </div>
           </div>

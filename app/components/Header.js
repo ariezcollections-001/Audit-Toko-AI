@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, ArrowLeft, Clock } from 'lucide-react'
+import { Menu, X, ArrowLeft, Clock, Loader2 } from 'lucide-react'
 import BrandLogo from './BrandLogo'
 
 export default function Header({
@@ -16,6 +16,15 @@ export default function Header({
   adminConfig,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isBackLoading, setIsBackLoading] = useState(false)
+
+  const handleBackToHomeClick = () => {
+    setIsBackLoading(true)
+    setTimeout(() => {
+      setIsBackLoading(false)
+      onBackToHome()
+    }, 500)
+  }
 
   const isHome = view === 'home'
   const bannerEnabled = adminConfig?.bannerEnabled === true
@@ -180,11 +189,21 @@ export default function Header({
               ) : (
                 <>
                   <button
-                    onClick={onBackToHome}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition"
+                    onClick={handleBackToHomeClick}
+                    disabled={isBackLoading}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 font-medium text-xs md:text-sm hover:bg-slate-100 hover:border-slate-300 transition disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <ArrowLeft className="w-4 h-4" />
-                    Kembali ke Beranda
+                    {isBackLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Kembali ke Beranda...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowLeft className="w-4 h-4" />
+                        Kembali ke Beranda
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={onCaraKerjaClick}
@@ -256,11 +275,21 @@ export default function Header({
             ) : (
               <>
                 <button
-                  onClick={onBackToHome}
-                  className="block w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  onClick={handleBackToHomeClick}
+                  disabled={isBackLoading}
+                  className="block w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Kembali ke Beranda
+                  {isBackLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Kembali ke Beranda...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowLeft className="w-4 h-4" />
+                      Kembali ke Beranda
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={onCaraKerjaClick}

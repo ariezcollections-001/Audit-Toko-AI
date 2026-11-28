@@ -142,6 +142,8 @@ export default function Home() {
   const [showUploadLoading, setShowUploadLoading] = useState(false)
   const [uploadStartTime, setUploadStartTime] = useState(null)
   const MIN_UPLOAD_DISPLAY_MS = 2500
+  const [uploadProgress, setUploadProgress] = useState(null)
+  const progressTimerRef = useRef(null)
 
   // History state
   const [auditHistory, setAuditHistory] = useState([])
@@ -162,6 +164,16 @@ export default function Home() {
 
   // Tandai agar useEffect restore aktif hanya berjalan sekali per muatan halaman
   const restoredActiveIdRef = useRef(null)
+
+  // Bersihkan timer progres saat komponen unmount untuk mencegah memory leak
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current)
+        progressTimerRef.current = null
+      }
+    }
+  }, [])
 
   // Modal states
   const [caraKerjaOpen, setCaraKerjaOpen] = useState(false)
@@ -379,6 +391,26 @@ export default function Home() {
     async (records, mapping, headers, fileName, requiredColumnConfidence = {}) => {
       setShowUploadLoading(true)
       setUploadStartTime(Date.now())
+      setUploadProgress({ step: 1, status: 'Membaca struktur kolom laporan...', progress: 10 })
+
+      // Animasi progres tahap audit secara bertahap (total ~2.2–2.8 detik)
+      progressTimerRef.current = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (!prev || prev.progress >= 100) return prev
+          const nextProgress = Math.min(100, prev.progress + 14)
+          let step = prev.step
+          let status = prev.status
+          if (nextProgress >= 35 && prev.step < 2) {
+            step = 2
+            status = 'Menghitung potongan & laba bersih...'
+          }
+          if (nextProgress >= 70 && prev.step < 3) {
+            step = 3
+            status = 'Menyiapkan rekomendasi harga...'
+          }
+          return { step, status, progress: nextProgress }
+        })
+      }, 280)
 
       try {
         setFileData({ fileName, headers, records, mapping })
@@ -490,6 +522,12 @@ export default function Home() {
           const elapsed = Date.now() - uploadStartTime
           const remaining = Math.max(0, MIN_UPLOAD_DISPLAY_MS - elapsed)
           await new Promise((resolve) => setTimeout(resolve, remaining))
+          if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current)
+            progressTimerRef.current = null
+          }
+          setUploadProgress({ step: 3, status: 'Selesai. Memuat hasil audit...', progress: 100 })
+          await new Promise((resolve) => setTimeout(resolve, 250))
           setView('results')
           return
         }
@@ -541,12 +579,24 @@ export default function Home() {
         const remaining = Math.max(0, MIN_UPLOAD_DISPLAY_MS - elapsed)
         await new Promise((resolve) => setTimeout(resolve, remaining))
 
+        if (progressTimerRef.current) {
+          clearInterval(progressTimerRef.current)
+          progressTimerRef.current = null
+        }
+        setUploadProgress({ step: 3, status: 'Selesai. Memuat hasil audit...', progress: 100 })
+        await new Promise((resolve) => setTimeout(resolve, 250))
+
         setView('results')
         // setShowUploadLoading(false) dipindahkan ke useEffect di bawah agar
         // popup tidak hilang sebelum sempat terlihat saat transisi view
       } catch (err) {
         console.error('Gagal memproses file:', err)
+        if (progressTimerRef.current) {
+          clearInterval(progressTimerRef.current)
+          progressTimerRef.current = null
+        }
         setShowUploadLoading(false)
+        setUploadProgress(null)
         throw err
       }
     },
@@ -1010,22 +1060,31 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
           <div className="bg-white rounded-2xl p-8 md:p-12 shadow-2xl border border-emerald-100 w-full max-w-md mx-4 transform transition-all duration-300 scale-100">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+            <div className="flex flex-col items-center justify-center text-center space-y-5">
+              <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto shadow-sm shadow-emerald-200/50">
+                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
               </div>
               <div className="space-y-2">
                 <p className="text-lg font-semibold text-slate-900">
-                  Sedang Memproses File Excel…
+                  {uploadProgress?.status || 'Sedang Memproses File Excel…'}
                 </p>
                 <p className="text-sm text-slate-500">
-                  Mengaudit data transaksi & pesanan retur…
+                  AuditToko AI sedang memindai dan menganalisis data Anda
                 </p>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200/50">
                 <div
-                  className="bg-emerald-600 h-2 rounded-full animate-pulse"
+                  className="bg-emerald-600 h-full rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${uploadProgress?.progress || 0}%` }}
                 />
+              </div>
+              <div className="flex items-center justify-between w-full px-2">
+                <span className="text-xs text-slate-400 font-mono">
+                  Tahap {uploadProgress?.step || 1} / 3
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  {uploadProgress?.progress || 0}%
+                </span>
               </div>
             </div>
           </div>
@@ -1320,6 +1379,7 @@ export default function Home() {
                 onDeleteHistory={handleDeleteHistory}
                 onDeleteSelectedHistory={handleDeleteSelectedHistory}
                 onClearAllHistory={handleClearAllHistory}
+                onDeleteComplete={() => showToast('Riwayat berhasil dihapus.')}
               />
             </div>
             {auditHistory.length === 0 && (
