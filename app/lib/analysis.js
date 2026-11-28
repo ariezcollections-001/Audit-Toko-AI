@@ -100,7 +100,7 @@ const COLUMN_ALIASES = {
   // --- Kolom harga jual produk dari file Excel pelanggan ---
   // Sumber utama "Total Omzet Kotor" (grossSales): kolom subtotal baris
   // ('Total Harga Produk' / 'Subtotal Produk'; harga per pcs = total / qty).
-  // CATATAN: 'total penghasilan' / 'penghasilan' SENGaja JANGAN dimasukkan di sini —
+  // CATATAN: 'total penghasilan' / 'penghasilan' SENGaja JANGAN dimasukkan di sini â€”
   // kolom penghasilan hanya boleh milik settlementAmount (netPayout / Total Dana Bersih Cair),
   // agar Total Omzet Kotor tidak ikut mengambil nilai Total Penghasilan.
   productPrice: [
@@ -707,7 +707,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   const aliases = buildMergedAliases(marketplace)
 
   // Ambang keyakinan untuk kolom wajib (productPrice & settlementAmount).
-  // Jika di bawah 80, dianggap tidak yakin → memicu Fallback Manual Mapping.
+  // Jika di bawah 80, dianggap tidak yakin â†’ memicu Fallback Manual Mapping.
   const STRICT_CONFIDENCE = 80
   const REQUIRED_COLUMNS = ['productPrice', 'settlementAmount']
   const requiredColumnConfidence = {}
@@ -715,7 +715,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   // ============================================================================
   // FASE 1: Cocokkan setiap kunci kamus terhadap header menggunakan kedua
   // versi normalisasi (cleanFull & cleanBase) + aturan pola akar kata.
-  // Kolom yang dikenal mendapatkan skor ≥ 85 (alias eksak 100, substring 85,
+  // Kolom yang dikenal mendapatkan skor â‰¥ 85 (alias eksak 100, substring 85,
   // pola akar kata 90), sehingga kotak kuning tidak muncul secara tidak perlu.
   // ============================================================================
   for (const [key, aliasList] of Object.entries(aliases)) {
@@ -770,7 +770,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
 
   // ============================================================================
   // FASE 2: Sisa kolom nominal yang mengandung kata kunci potongan/beban
-  // (biaya, fee, komisi, diskon, dll) → masuk ke rincian potongan (cost_*)
+  // (biaya, fee, komisi, diskon, dll) â†’ masuk ke rincian potongan (cost_*)
   // dan TIDAK pernah memicu kotak kuning.
   // ============================================================================
   for (let i = 0; i < headers.length; i++) {
@@ -799,7 +799,7 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
   }
 
   // ============================================================================
-  // FASE 3: Metadata non-keuangan (daftar putih) → meta_*, diabaikan dari
+  // FASE 3: Metadata non-keuangan (daftar putih) â†’ meta_*, diabaikan dari
   // unrecognizedColumns dan tidak pernah memicu kotak kuning.
   // ============================================================================
   for (let i = 0; i < headers.length; i++) {
@@ -821,15 +821,15 @@ export function smartMapHeaders(rawHeaders, marketplace = 'auto') {
 /**
  * Parses virtually any number format into a clean Number.
  * Handles:
- *   - "Rp 150.000"       → 150000
- *   - "Rp150.000"        → 150000
- *   - "150.000"          → 150000
- *   - "150,000.00"       → 150000
- *   - "(15.000)"         → -15000   (accounting negative)
- *   - "-15000"           → -15000
- *   - "150000"           → 150000
- *   - null / undefined / "" → 0
- *   - Anything else      → 0 (never NaN)
+ *   - "Rp 150.000"       â†’ 150000
+ *   - "Rp150.000"        â†’ 150000
+ *   - "150.000"          â†’ 150000
+ *   - "150,000.00"       â†’ 150000
+ *   - "(15.000)"         â†’ -15000   (accounting negative)
+ *   - "-15000"           â†’ -15000
+ *   - "150000"           â†’ 150000
+ *   - null / undefined / "" â†’ 0
+ *   - Anything else      â†’ 0 (never NaN)
  */
 export function parseNumberUniversal(val) {
   if (val === null || val === undefined || val === '') return 0
@@ -838,7 +838,7 @@ export function parseNumberUniversal(val) {
   const s = String(val).trim()
   if (s === '') return 0
 
-  // Detect accounting-style negative: (15.000) → -15000
+  // Detect accounting-style negative: (15.000) â†’ -15000
   let isNegative = /^\(\s*[\d.,]+\s*\)$/.test(s)
 
   // Remove all non-numeric chars except digits, comma, dot, minus
@@ -849,16 +849,16 @@ export function parseNumberUniversal(val) {
     cleaned = '-' + cleaned
   }
 
-  // Indonesian format: "150.000" → thousand separator dot
-  // US format: "150,000.00" → comma thousand, dot decimal
+  // Indonesian format: "150.000" â†’ thousand separator dot
+  // US format: "150,000.00" â†’ comma thousand, dot decimal
   // Strategy: remove dots (thousand sep), replace comma with dot (decimal)
   const hasDot = cleaned.includes('.')
   const hasComma = cleaned.includes(',')
 
   if (hasDot && hasComma) {
     // "1.234,56" (EU/ID) or "1,234.56" (US)
-    // If last comma is after last dot → EU/ID: 1.234,56
-    // If last dot is after last comma → US: 1,234.56
+    // If last comma is after last dot â†’ EU/ID: 1.234,56
+    // If last dot is after last comma â†’ US: 1,234.56
     const lastDot = cleaned.lastIndexOf('.')
     const lastComma = cleaned.lastIndexOf(',')
     if (lastComma > lastDot) {
@@ -870,8 +870,8 @@ export function parseNumberUniversal(val) {
     }
   } else if (hasDot && !hasComma) {
     // Could be "150.000" (ID thousand) or "150.00" (US decimal)
-    // Heuristic: if dot is followed by exactly 2 digits at end → decimal
-    // Otherwise → thousand separator, remove dots
+    // Heuristic: if dot is followed by exactly 2 digits at end â†’ decimal
+    // Otherwise â†’ thousand separator, remove dots
     const parts = cleaned.split('.')
     if (parts.length === 2 && parts[1].length === 2 && parts[0].length <= 3) {
       // Likely decimal like "150.00"
@@ -881,7 +881,7 @@ export function parseNumberUniversal(val) {
       cleaned = cleaned.replace(/\./g, '')
     }
   } else if (hasComma && !hasDot) {
-    // "150,000" → could be thousand (US) or decimal (EU)
+    // "150,000" â†’ could be thousand (US) or decimal (EU)
     const parts = cleaned.split(',')
     if (parts.length === 2 && parts[1].length === 2) {
       // Decimal like "150,00"
@@ -1133,7 +1133,7 @@ export function calculateRecommendedPrice(totalModalUnit, feeRate, targetProfit)
 /**
  * Kolom yang nilainya SUDAH merupakan total untuk seluruh qty pada satu baris pesanan
  * (contoh: Total Harga Produk, Subtotal Produk, Total Pembayaran). Nilai di kolom ini
- * JANGAN boleh dikalikan qty/Jumlah lagi — ambil nominal baris apa adanya.
+ * JANGAN boleh dikalikan qty/Jumlah lagi â€” ambil nominal baris apa adanya.
  * Hanya kolom harga SATUAN (Harga Produk / Harga Satuan) yang baru dikalikan qty untuk
  * mendapatkan total baris.
  */
@@ -1169,6 +1169,8 @@ export function calculateAnalysis(rows, mapping, hppInputs = {}, marketplace = '
   const products = {}
   const claims = []
   const returnedOrders = []
+  // Order ID â†’ selisih ongkir pertama (untuk deduplikasi ongkir tingkat order yang di-duplikasi di semua baris produk)
+  const shippingDiffByOrderId = new Map()
   let totalRefundCosts = 0
   let globalDeductions = 0
   let totalUnitsSuccess = 0
@@ -1361,10 +1363,6 @@ initShopeeDeductionColumns()
   const settledOrderIds = new Set()
 
   // Track orderId yang sudah memiliki grossRevenue (omzet kotor) terhitung
-  // pada level order (untuk kolom total baris yang nilainya diulang pada setiap
-  // baris item pesanan multi-item). Mencegah penjumlahan ganda order total.
-  const orderGrossCommitted = new Set()
-
   for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
     const row = rows[rowIdx]
     const orderId = getStr(row, 'orderId', ['No. Pesanan', 'order id', 'invoice'])
@@ -1396,7 +1394,7 @@ initShopeeDeductionColumns()
     // Prioritas ambil dari 'Total Harga Produk' / 'Subtotal Produk' (grossSales),
     // lalu baru harga satuan ('Harga Produk' / 'Harga Jual' dst).
     const productPrice = get(row, 'productPrice', ['Total Harga Produk', 'Subtotal Produk', 'Harga Asli Produk', 'Harga Produk', 'Harga Jual Produk', 'Harga Jual', 'product price', 'price', 'harga jual'])
-    // 'jumlah' (exact) selain 'jumlah produk' dan 'qty' — pencarian case-insensitive
+    // 'jumlah' (exact) selain 'jumlah produk' dan 'qty' â€” pencarian case-insensitive
     // di atas memastikan kolom 'Jumlah' dari Excel selalu terbaca.
     const qty = get(row, 'quantity', ['Quantity', 'qty', 'jumlah', 'jumlah produk', 'qty terjual', 'jumlah pcs']) || 1
     const estShipping = get(row, 'shippingEstimate', ['Estimasi Ongkir', 'estimated shipping'])
@@ -1417,6 +1415,7 @@ initShopeeDeductionColumns()
     const shippingBorneBySeller = get(row, 'shippingBorneBySeller', ['Ongkir Ditanggung Penjual', 'ongkir ditanggung penjual', 'shipping borne by seller', 'ongkir tanggung penjual'])
     const shippingActualCourier = get(row, 'shippingActualCourier', ['Ongkir Aktual Ekspedisi', 'ongkir aktual ekspedisi', 'actual shipping courier', 'ongkir aktual'])
     const shippingFeeDiscrepancy = get(row, 'shippingFeeDiscrepancy', ['Shipping Fee Discrepancy', 'selisih ongkir pembelian', 'perbedaan ongkir pembelian', 'shipping fee diff'])
+    const shippingDifference = get(row, 'shippingDifference', ['Selisih Ongkir', 'selisih Ongkir', 'shipping difference', 'selisih biaya kirim', 'selisih ongkos kirim', 'shipping diff', 'selisih ongkir shopee', 'perbedaan ongkir'])
 
     // --- Anti-error: pastikan semua nilai angka aman (tidak NaN/Infinity) ---
     const safeSettlement = isFinite(settlement) ? settlement : 0
@@ -1441,6 +1440,7 @@ initShopeeDeductionColumns()
     const safeShippingBorneBySeller = isFinite(shippingBorneBySeller) ? shippingBorneBySeller : 0
     const safeShippingActualCourier = isFinite(shippingActualCourier) ? shippingActualCourier : 0
     const safeShippingFeeDiscrepancy = isFinite(shippingFeeDiscrepancy) ? shippingFeeDiscrepancy : 0
+    const safeShippingDifference = isFinite(shippingDifference) ? shippingDifference : 0
 
     let extraCosts = 0
     for (const [key, colName] of Object.entries(mapping)) {
@@ -1451,18 +1451,59 @@ initShopeeDeductionColumns()
     }
     const safeExtraCosts = isFinite(extraCosts) ? extraCosts : 0
 
+    // =========================================================================
+    // FILTER STATUS PALING AWAL â€” sebelum perhitungan totalGrossSales dan produk
+    // =========================================================================
+    // Deteksi status pesanan dari kolom Status / Status Settlement
+    const orderStatus = getStr(row, 'status', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status', 'Status Settlement', 'status settlement'])
+    const statusClass = classifyOrderStatus(orderStatus)
+
+    // Status BATAL â†’ abaikan sepenuhnya: tidak dihitung omzet, dana cair, maupun produk
+    if (statusClass === 'cancelled') {
+      continue
+    }
+
+    // Status RETUR / REFUND â†’ masukkan HANYA ke ringkasan Pesanan Retur, lalu skip
+    if (statusClass === 'returned' || safeRefund > 0) {
+      const usedDeductionCols = new Set()
+      let lostFeeAmount = 0
+      deductionColumns.forEach((dc) => {
+        if (dc.key === 'refund') return
+        const actualCol = findActualDeductionColumn(dc.key, ALIASES[dc.key] || [])
+        if (!actualCol || usedDeductionCols.has(actualCol)) return
+        usedDeductionCols.add(actualCol)
+        const val = toNumber(row[actualCol] || 0)
+        if (val !== 0) lostFeeAmount += Math.abs(val)
+      })
+      // Nominal settlement negatif = biaya hangus / kembali ongkir ditanggung penjual
+      if (safeSettlement < 0) {
+        lostFeeAmount += Math.abs(safeSettlement)
+      }
+      returnedOrders.push({
+        orderId: orderId || '-',
+        productName: productName,
+        sku: sku || '-',
+        qty: safeQty,
+        productPrice: safeProductPrice,
+        refundAmount: safeRefund,
+        lostFeeAmount: lostFeeAmount,
+      })
+      totalRefundCosts += lostFeeAmount
+      continue // Jangan masukkan baris retur ke tabel produk sukses
+    }
+
     // Semua biaya potongan Shopee baru dimasukkan ke total deductions
     const totalDeductions = safePlatformComm + safeAffiliateComm + safeExtraCosts
       + safeOrderProcessFee + safePromoServiceFee + safeAmsCommission
       + safeShippingSavingProgram + safePremium + safeTax + safeAdditionalServiceFee
 
     // Total Penghasilan (settlementAmount) sudah merupakan nilai bersih (net) setelah
-    // semua potongan marketplace. Jangan kurangi totalDeductions lagi — hanya kurangi refund.
+    // semua potongan marketplace. Jangan kurangi totalDeductions lagi â€” hanya kurangi refund.
     const netSettlement = safeSettlement - safeRefund
     const units = Math.max(safeQty, 1)
     // --- Tentukan apakah harga produk yang terbaca adalah TOTAL BARIS (sudah untuk seluruh qty)
     // atau HARGA SATUAN (per pcs). Kolom total baris (Total Harga Produk, Subtotal Produk,
-    // Total Pembayaran, dll.) SUDAH merupakan jumlah untuk seluruh qty pada baris tersebut —
+    // Total Pembayaran, dll.) SUDAH merupakan jumlah untuk seluruh qty pada baris tersebut â€”
     // JANGAN dikalikan qty lagi. Hanya kalikan qty apabila kolomnya adalah harga satuan
     // (Harga Produk / Harga Satuan) dan file TIDAK memiliki kolom total baris.
     //
@@ -1510,17 +1551,6 @@ initShopeeDeductionColumns()
       pricePerUnit = safeSettlement / units
     }
 
-    // Order-level dedup untuk grossRevenue (total price columns)
-    // Jika kolom merupakan total baris dan orderId sudah pernah di-hitung pada
-    // baris item pertama, jangan jumlahkan ulang order total pada baris berikutnya
-    if (isTotalPriceCol && orderId) {
-      if (orderGrossCommitted.has(orderId)) {
-        rowGrossRevenue = 0
-      } else {
-        orderGrossCommitted.add(orderId)
-      }
-    }
-
     // --- Deteksi baris "Total / Ringkasan / Grand Total" di bawah tabel ---
     // Hanya buang baris yang BENAR-BENAR ringkasan (tidak punya No. Pesanan atau
     // No. Pesanan-nya sendiri mengandung kata total). Jangan buang baris transaksi
@@ -1540,12 +1570,11 @@ initShopeeDeductionColumns()
     }
 
     // Normalisasi nama produk untuk grouping (case-insensitive, trim, hapus spasi berlebih)
-    const productName = productNameRaw.trim()
     const productKey = productName.toLowerCase().replace(/\s+/g, ' ')
 
     // Deteksi offset ongkir: jika Potongan Ongkos Kirim dari Shopee
     // sudah menutupi Ongkos Kirim yang Dibayarkan ke Jasa Kirim,
-    // subtotal ongkir Rp0 → tidak dianggap kerugian ongkir penjual.
+    // subtotal ongkir Rp0 â†’ tidak dianggap kerugian ongkir penjual.
     const netShippingCost = safeShippingFee + safeShippingPaidToCourier - safeShippingDeduction
     const shippingOffset = Math.abs(netShippingCost) < 1000 // toleransi Rp1.000
 
@@ -1559,95 +1588,56 @@ initShopeeDeductionColumns()
       })
     }
 
-    // --- Deteksi Selisih Ongkir per Baris Pesanan (semua variasi kolom) ---
-    // Prioritas 1: kolom potongan langsung (Selisih Ongkir / Shipping Fee Discrepancy)
-    // Prioritas 2: perbandingan pasangan kolom ongkir
-    //   Pendapatan Ongkir / Ongkir Dibayar Pembeli  vs  Ongkir Ditanggung Penjual / Ongkir Aktual Ekspedisi / Ongkir Dibayar ke Kurir
-    let rowShippingDiff = 0
-    let rowShippingDiffLabel = ''
-    if (safeShippingDifference !== 0) {
-      rowShippingDiff = safeShippingDifference
-      rowShippingDiffLabel = 'Selisih Ongkir'
-    } else if (safeShippingFeeDiscrepancy !== 0) {
-      rowShippingDiff = safeShippingFeeDiscrepancy
-      rowShippingDiffLabel = 'Shipping Fee Discrepancy'
-    } else {
-      const shippingCharged = safeShippingRevenue || safeBuyerShipping
-      const shippingBorne = safeShippingBorneBySeller || safeShippingActualCourier || safeShippingPaidToCourier
-      if (shippingCharged > 0 || shippingBorne > 0) {
-        rowShippingDiff = shippingCharged - shippingBorne
-        rowShippingDiffLabel = 'Selisih Ongkir (perbandingan)'
-      }
-    }
+    // --- Deteksi Selisih Ongkir Bersih per Baris Pesanan (hanya baris sukses) ---
+    // selisihOngkir = Math.max(0, |shippingActual| - |shippingBuyer|)
+    // Hanya hitung jika selisihOngkir > 0 (beban penjual nyata, tidak impas)
+    const shippingBuyer = safeShippingRevenue || safeBuyerShipping
+    const shippingActual = safeShippingBorneBySeller || safeShippingActualCourier || safeShippingPaidToCourier
+    const selisihOngkir = Math.max(0, Math.abs(shippingActual || 0) - Math.abs(shippingBuyer || 0))
 
     // Simpan ke properti produk untuk referensi Sheet 2 / detail
     const pForDiff = products[productKey]
-    if (pForDiff && rowShippingDiff !== 0) {
-      pForDiff.shippingDiff = (pForDiff.shippingDiff || 0) + rowShippingDiff
+    if (pForDiff && selisihOngkir !== 0) {
+      pForDiff.shippingDiff = (pForDiff.shippingDiff || 0) + selisihOngkir
     }
 
-    // Masukkan ke claims jika selisih ongkir beban penjual signifikan (> Rp 5.000)
-    if (rowShippingDiff > 5000) {
-      claims.push({
-        orderId: orderId || `ORD-${Date.now()}`,
-        product: productName,
-        sku: sku || '-',
-        resi: resi || '-',
-        difference: rowShippingDiff,
-        shippingDiffSource: rowShippingDiffLabel || 'Selisih Ongkir'
-      })
-    }
-
-    // Akumulasi total selisih ongkir beban penjual (hanya nilai positif)
-    if (rowShippingDiff > 0) {
-      summaryShippingDiffTotal += rowShippingDiff
-    }
-
-    // Deteksi status pesanan dari kolom Status / Status Settlement
-    // Pastikan kolom status (termasuk 'Status Settlement') selalu dipetakan ke field 'status'
-    const orderStatus = getStr(row, 'status', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status', 'Status Settlement', 'status settlement'])
-    const statusClass = classifyOrderStatus(orderStatus)
-
-    // Status BATAL → abaikan sepenuhnya: tidak dihitung omzet, dana cair, atau unit sukses
-    if (statusClass === 'cancelled') {
-      continue
-    }
-
-    // Status RETUR / REFUND → masukkan ke ringkasan Pesanan Retur, bukan produk sukses
-    const usedDeductionCols = new Set()
-    if (statusClass === 'returned' || safeRefund > 0) {
-      // Biaya hangus = semua potongan operasional pada baris retur (kecuali refund itu sendiri)
-      let lostFeeAmount = 0
-      deductionColumns.forEach((dc) => {
-        if (dc.key === 'refund') return
-        const actualCol = findActualDeductionColumn(dc.key, ALIASES[dc.key] || [])
-        if (!actualCol || usedDeductionCols.has(actualCol)) return
-        usedDeductionCols.add(actualCol)
-        const val = toNumber(row[actualCol] || 0)
-        if (val !== 0) lostFeeAmount += Math.abs(val)
-      })
-      // Nominal settlement negatif (mis. -Rp 14.000) = biaya hangus / kembali ongkir
-      // yang ditanggung penjual karena dana pembeli belum cair. Masukkan sebagai
-      // biaya hangus retur agar terakumulasi ke totalRefundCosts / biayaHangusRetur.
-      if (safeSettlement < 0) {
-        lostFeeAmount += Math.abs(safeSettlement)
+    // Deduplikasi ongkir tingkat order: jika orderId sudah ada dengan selisih ongkir identik, skip (hindari double-count)
+    // Jika selisih berbeda (ongkir per item), hitung sebagai item terpisah
+    if (orderId) {
+      const prevDiff = shippingDiffByOrderId.get(orderId)
+      if (prevDiff !== undefined && prevDiff === selisihOngkir) {
+        // Duplikasi identik â†’ skip
+      } else {
+        shippingDiffByOrderId.set(orderId, selisihOngkir)
+        // Masukkan ke claims hanya jika selisih ongkir beban penjual nyata (> 0)
+        if (selisihOngkir > 0) {
+          claims.push({
+            orderId: orderId || `ORD-${Date.now()}`,
+            product: productName,
+            sku: sku || '-',
+            resi: resi || '-',
+            difference: selisihOngkir,
+            shippingDiffSource: 'Selisih Ongkir Bersih'
+          })
+        }
+        // Akumulasi total selisih ongkir beban penjual (hanya nilai > 0)
+        if (selisihOngkir > 0) {
+          summaryShippingDiffTotal += selisihOngkir
+        }
       }
-      returnedOrders.push({
-        orderId: orderId || '-',
-        productName: productName,
-        sku: sku || '-',
-        qty: safeQty,
-        productPrice: safeProductPrice,
-        refundAmount: safeRefund,
-        lostFeeAmount: lostFeeAmount,
-      })
-      totalRefundCosts += lostFeeAmount
-      // totalUnitsReturned akan dihitung secara terpusat dari reduce di bawah,
-      // jangan akumulasi di sini untuk menghindari double-counting
-      continue // Jangan masukkan baris retur ke tabel produk sukses — hanya ke returnedOrders
     } else {
-      // totalUnitsSuccess akan dihitung secara terpusat dari reduce di bawah (baris ~1653),
-      // jangan akumulasi di sini untuk menghindari double-counting
+      // Tanpa orderId, proses sebagai baris tunggal
+      if (selisihOngkir > 0) {
+        claims.push({
+          orderId: `ORD-${Date.now()}`,
+          product: productName,
+          sku: sku || '-',
+          resi: resi || '-',
+          difference: selisihOngkir,
+          shippingDiffSource: 'Selisih Ongkir Bersih'
+        })
+        summaryShippingDiffTotal += selisihOngkir
+      }
     }
 
     // Akumulasi pecahan potongan per kolom asli untuk Langkah 1
@@ -1678,13 +1668,26 @@ initShopeeDeductionColumns()
       }
     })
 
-    // Selisih Ongkir: hanya masukkan ke deductionBreakdown jika Estimasi Ongkir > Ongkir Dibayar Pembeli
-    const autoShippingDiff = safeEstShipping - safeBuyerShipping
-    if (autoShippingDiff > 5000) {
-      if (!deductionBreakdownMap['shippingDifference']) {
-        deductionBreakdownMap['shippingDifference'] = { label: 'Selisih Ongkir', amount: 0 }
+    // Selisih Ongkir: hanya masukkan ke deductionBreakdown jika selisihOngkir > 0 (beban penjual nyata)
+    // Jika ongkir pembeli dan ongkir ekspedisi impas (selisihOngkir === 0), jangan masukkan ke Total Potongan Marketplace
+    // Hindari double-count multi-item: jika orderId sudah diproses dengan selisih ongkir identik, skip
+    if (selisihOngkir > 0) {
+      if (orderId) {
+        const prevDiff = shippingDiffByOrderId.get(orderId)
+        if (prevDiff !== undefined && prevDiff === selisihOngkir) {
+          // Sudah diproses di blok di atas â†’ skip
+        } else {
+          if (!deductionBreakdownMap['shippingDifference']) {
+            deductionBreakdownMap['shippingDifference'] = { label: 'Selisih Ongkir', amount: 0 }
+          }
+          deductionBreakdownMap['shippingDifference'].amount += selisihOngkir
+        }
+      } else {
+        if (!deductionBreakdownMap['shippingDifference']) {
+          deductionBreakdownMap['shippingDifference'] = { label: 'Selisih Ongkir', amount: 0 }
+        }
+        deductionBreakdownMap['shippingDifference'].amount += selisihOngkir
       }
-      deductionBreakdownMap['shippingDifference'].amount += autoShippingDiff
     }
 
     if (!products[productKey]) {
@@ -1738,7 +1741,16 @@ initShopeeDeductionColumns()
   totalUnitsReturned = Object.values(products).reduce((acc, p) => acc + (p.unitsSoldReturned || 0), 0)
 
   const totalMarketplaceFees = Object.values(products).reduce((acc, p) => acc + p.marketplaceFees, 0)
-    const totalSettlement = Object.values(products).reduce((acc, p) => acc + p.settlementAmount, 0)
+    // Hanya hitung settlementAmount sekali per Order ID untuk marketplaceFeeRatio (hindari double-count multi-item)
+    let totalSettlement = 0
+    const seenOrderIdsForFee = new Set()
+    for (const p of Object.values(products)) {
+      if (p.orderId) {
+        if (seenOrderIdsForFee.has(p.orderId)) continue
+        seenOrderIdsForFee.add(p.orderId)
+      }
+      totalSettlement += p.settlementAmount || 0
+    }
     const marketplaceFeeRatio = totalSettlement > 0 ? totalMarketplaceFees / totalSettlement : 0.1
     const productList = Object.values(products).map(p => {
     // HPP selalu 0 sampai pelanggan mengisi sendiri (tidak ada estimasi otomatis)
@@ -1802,26 +1814,30 @@ initShopeeDeductionColumns()
       const oId = p.orderId
       if (!oId) return
       if (!orderMap.has(oId)) {
-        // Ambil settlement dari baris pertama saja per Order ID,
-        // agar tidak terhitung ganda jika Excel duplikasi nilai settlement per baris produk
-        orderMap.set(oId, { totalGross: 0, totalSettlement: p.settlementAmount || 0, count: 0 })
+        // Catat entri pertama per Order ID untuk referensi settlement tingkat order
+        orderMap.set(oId, { totalGross: 0, count: 0, firstIndex: -1 })
       }
       const entry = orderMap.get(oId)
       entry.totalGross += p.grossRevenue || 0
       entry.count += 1
+      if (entry.firstIndex === -1) entry.firstIndex = productList.findIndex(x => x.orderId === oId)
     })
     // Jika tidak ada orderMap, return productList asli
     if (orderMap.size === 0) return productList
+
+    // Tandai entri pertama per orderId untuk digunakan di summary (hindari double-counting settlement)
+    orderMap.forEach(entry => {
+      if (entry.firstIndex >= 0) productList[entry.firstIndex].__orderFirstEntry = true
+    })
 
     const dedupInfo = productList.map((p, i) => {
       const oId = p.orderId
       const entry = orderMap.get(oId)
       return {
         ...p,
-        // Gunakan settlement proporsional per product dalam order
-        settlementAmount: entry ? isFinite(entry.totalSettlement) ? Math.round((p.grossRevenue || 0) / Math.max(entry.totalGross, 1) * entry.totalSettlement) : p.settlementAmount : p.settlementAmount,
-        // Tandai bahwa ini adalah allocasi deduplicated
-        _isDeduplicated: !!entry,
+        // Pertahankan nilai asli per item (jangan menol-kan harga atau potongan item kedua/ketiga)
+        // Hanya tandai apakah ini adalah item dalam order multi-item
+        _isDeduplicated: !!entry && entry.count > 1,
       }
     })
     return dedupInfo
@@ -1839,7 +1855,12 @@ initShopeeDeductionColumns()
   }, 0)
 
   // Ambil semua nilai yang dibutuhkan untuk laba bersih sesungguhnya dengan default 0
-  const baseSettlementAmount = safeReduce(dedupedProductList, 'settlementAmount')
+  // Hanya hitung settlementAmount sekali per Order ID (dari entri pertama) untuk menghindari double-counting
+  const baseSettlementAmount = dedupedProductList.reduce((sum, p) => {
+    if (p.orderId && !p.__orderFirstEntry) return sum
+    const v = isFinite(p.settlementAmount) ? p.settlementAmount : 0
+    return sum + v
+  }, 0)
   const totalHppVal = safeReduce(dedupedProductList, 'hppTotal')
   const totalPackingVal = safeReduce(dedupedProductList, 'totalPackingProduk')
   const totalAdCostVal = adCost // diteruskan dari ResultsSection via page.js
@@ -1864,8 +1885,8 @@ initShopeeDeductionColumns()
     totalGross: safeReduce(dedupedProductList, 'grossRevenue'),
     // Langkah 1: Pecahan potongan marketplace per kolom asli (hanya entri > 0)
     deductionBreakdown: Object.values(deductionBreakdownMap).filter(d => d.amount > 0),
-    // Langkah 1: Total selisih potongan (Omzet Kotor − Dana Bersih Cair)
-    totalGrossDeduction: safeReduce(dedupedProductList, 'grossRevenue') - safeReduce(dedupedProductList, 'settlementAmount'),
+    // Langkah 1: Total selisih potongan (Omzet Kotor âˆ’ Dana Bersih Cair)
+    totalGrossDeduction: safeReduce(dedupedProductList, 'grossRevenue') - baseSettlementAmount,
     // Langkah 3: Total biaya iklan/ads periode ini (opsional, diteruskan dari ResultsSection)
     totalAdCost: adCost,
     // Langkah 3: Laba Bersih Sesungguhnya = Dana Bersih Cair - Modal HPP - Packing - Iklan
