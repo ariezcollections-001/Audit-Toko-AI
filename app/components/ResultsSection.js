@@ -785,15 +785,15 @@ const totalHpp = summary?.totalHpp || 0
               </div>
             )}
 
-            {/* === SELISIH ONGKIR & BIAYA RETUR — tepat di bawah Unduh File Perbaikan, di atas Laporan Sudah Terbuka === */}
-            {!isPriceTableZoomed && (claims.length > 0 || returnedOrders.length > 0) && (
+            {/* === RINCIAN SELISIH ONGKIR (BEBAN PENJUAL) — tepat di bawah Unduh File Perbaikan, di atas Laporan Sudah Terbuka === */}
+            {!isPriceTableZoomed && claims.some((c) => (c.difference || 0) > 0) && (
               <div className="mt-8 shrink-0">
                 <div className="flex items-center gap-2 mb-3">
                   <Truck className="w-5 h-5 text-blue-600" />
-                  <h4 className="font-bold text-blue-700">🔵 Selisih Ongkir & Biaya Retur</h4>
+                  <h4 className="font-bold text-blue-700">🔵 Rincian Selisih Ongkir (Beban Penjual)</h4>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
-                  Pesanan dengan selisih ongkir atau biaya retur/pengembalian dana yang menjadi beban penjual.
+                  Pesanan dengan selisih ongkir tersembunyi yang menjadi beban penjual.
                 </p>
                 <table className="w-full text-sm">
                   <thead className="bg-blue-50">
@@ -805,32 +805,19 @@ const totalHpp = summary?.totalHpp || 0
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-100">
-                    {/* Gabungkan data claims (selisih ongkir) dan returnedOrders (biaya retur) */}
-                    {[
-                      ...claims.map((c) => ({
-                        orderId: c.orderId,
-                        product: c.product,
-                        sku: c.sku || '-',
-                        nominal: c.difference,
-                        type: 'ongkir',
-                      })),
-                      ...returnedOrders.map((r) => ({
-                        orderId: r.orderId,
-                        product: r.productName,
-                        sku: r.sku || '-',
-                        nominal: r.lostFeeAmount || r.refundAmount || 0,
-                        type: 'retur',
-                      })),
-                    ].map((item, idx) => (
-                      <tr key={`${item.orderId}-${item.type}-${idx}`}>
-                        <td className="px-4 py-3 text-gray-900 font-medium">{item.orderId}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.product}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.sku}</td>
-                        <td className="px-4 py-3 text-right text-blue-600 font-semibold">
-                          {formatRupiah(item.nominal)}
-                        </td>
-                      </tr>
-                    ))}
+                    {/* Hanya pesanan dengan selisih ongkir beban penjual (selisihOngkir > 0) */}
+                    {claims
+                      .filter((c) => (c.difference || 0) > 0)
+                      .map((c, idx) => (
+                        <tr key={`${c.orderId}-ongkir-${idx}`}>
+                          <td className="px-4 py-3 text-gray-900 font-medium">{c.orderId}</td>
+                          <td className="px-4 py-3 text-gray-600">{c.product}</td>
+                          <td className="px-4 py-3 text-gray-600">{c.sku || '-'}</td>
+                          <td className="px-4 py-3 text-right text-blue-600 font-semibold">
+                            {formatRupiah(c.difference)}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
