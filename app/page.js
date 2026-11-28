@@ -15,6 +15,7 @@ import './globals.css'
 const HISTORY_KEY = 'audit_history_list'
 const MAX_HISTORY = 10
 const SESSION_PROGRESS_KEY = 'audit_session_progress'
+const ACTIVE_ID_KEY = 'audittoko_active_id' // ID laporan aktif yang tahan refresh browser (F5)
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 
 export default function Home() {
@@ -107,6 +108,16 @@ export default function Home() {
   const [isAlreadyPaid, setIsAlreadyPaid] = useState(false)
   const [expiresAt, setExpiresAt] = useState(null)
   const isRestoringRef = useRef(false)
+
+  // Toast notifikasi (mis. anti-duplikat riwayat 24 Jam)
+  const [toastMessage, setToastMessage] = useState(null)
+  const showToast = useCallback((msg) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 4000)
+  }, [])
+
+  // Tandai agar useEffect restore aktif hanya berjalan sekali per muatan halaman
+  const restoredActiveIdRef = useRef(null)
 
   // Modal states
   const [caraKerjaOpen, setCaraKerjaOpen] = useState(false)
@@ -375,16 +386,70 @@ export default function Home() {
           }))
         } catch {}
 
-        // Simpan ke riwayat otomatis
+        // === ANTI-DUPLIKAT RIWAYAT 24 JAM ===
         const totalSettlement = result.summary?.settlementAmount || 0
         const name = fileName || 'laporan-penjualan.xlsx'
 
-        // Cek apakah file sama sudah pernah dibayar (isPaid: true)
-        const existingPaid = auditHistory.find(
-          (h) => h.fileName === name &&
-                 h.summary?.settlementAmount === totalSettlement &&
-                 h.isPaid === true
-        )
+        // Cek apakah file dengan nama yang sama masih tersimpan di Riwayat 24 Jam
+        const existingHistoryItem = auditHistory.find((h) => h.fileName === name)
+
+        if (existingHistoryItem) {
+          // File sudah ada di riwayat (belum dihapus): JANGAN tambahkan baris baru.
+          // Langsung muat item riwayat yang sudah ada (pertahankan HPP yang diisi & status isUnlocked).
+          const isPaid = existingHistoryItem.isPaid === true
+          setAnalysisResult({
+            summary: existingHistoryItem.summary,
+            products: existingHistoryItem.products,
+            lossProducts: existingHistoryItem.lossProducts || [],
+            fakeStarProducts: existingHistoryItem.fakeStarProducts || [],
+            claims: existingHistoryItem.claims || [],
+            returnedOrders: existingHistoryItem.returnedOrders || [],
+            detectedColumns: existingHistoryItem.detectedColumns || [],
+            hasOrderIdColumn: existingHistoryItem.hasOrderIdColumn ?? true,
+          })
+          setFileData({ fileName: existingHistoryItem.fileName })
+          setHppInputs(existingHistoryItem.hppMap || {})
+          setTargetProfit(existingHistoryItem.targetProfit || 0.15)
+          setPackingCost(existingHistoryItem.packingCost || 2000)
+          setUnlocked(isPaid)
+          setPaid(isPaid)
+          setIsAlreadyPaid(isPaid)
+
+          // Perpanjang sesi 24 jam & simpan ID aktif agar tahan refresh (F5)
+          try {
+            const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
+            if (saved) {
+              const parsed = JSON.parse(saved)
+              if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
+                setExpiresAt(parsed.expiresAt)
+              } else {
+                setExpiresAt(Date.now() + SESSION_TTL_MS)
+              }
+            } else {
+              setExpiresAt(Date.now() + SESSION_TTL_MS)
+            }
+            localStorage.setItem(ACTIVE_ID_KEY, existingHistoryItem.id)
+          } catch {
+            setExpiresAt(Date.now() + SESSION_TTL_MS)
+            localStorage.setItem(ACTIVE_ID_KEY, existingHistoryItem.id)
+          }
+
+          setActiveHistoryId(existingHistoryItem.id)
+          showToast('File sudah ada di Riwayat 24 Jam — memuat data tersimpan.')
+
+          const elapsed = Date.now() - uploadStartTime
+          const remaining = Math.max(0, MIN_UPLOAD_DISPLAY_MS - elapsed)
+          await new Promise((resolve) => setTimeout(resolve, remaining))
+          setView('results')
+          return
+        }
+
+        // Jika tidak ada di riwayat (atau sudah pernah dihapus): buat entri baru dengan
+        // status awal TERKUNCI (isUnlocked: false / isPaid: false) agar pengguna
+        // wajib membayar QRIS atau memasukkan voucher lagi untuk membuka fitur lengkap.
+        setIsAlreadyPaid(false)
+        setUnlocked(false)
+        setPaid(false)
 
         const historyEntry = {
           id: now.toString(),
@@ -398,12 +463,8 @@ export default function Home() {
           packingCost,
           adCost,
           targetProfit,
-          isPaid: !!existingPaid,
+          isPaid: false,
         }
-
-        setIsAlreadyPaid(!!existingPaid)
-        setUnlocked(false)
-        setPaid(false)
 
         const newHistory = [historyEntry, ...auditHistory].slice(0, MAX_HISTORY)
         setAuditHistory(newHistory)
@@ -466,14 +527,40 @@ export default function Home() {
     }
 
     setActiveHistoryId(id)
+    // Simpan ID aktif ke localStorage agar layar hasil analisis tahan refresh (F5)
+    try { localStorage.setItem(ACTIVE_ID_KEY, id) } catch {}
     setView('results')
   }, [auditHistory])
+
+  // Restore analisis aktif saat halaman dimuat atau di-refresh (F5).
+  // Jika ada audittoko_active_id yang masih valid (belum kedaluwarsa 24 jam) di dalam
+  // daftar riwayat localStorage, otomatis muat dan tampilkan kembali halaman hasil analisis
+  // tersebut agar refresh tidak melempar pengguna ke beranda kosong.
+  // (Ditempatkan di sini agar handleLoadHistory sudah terdefinisi saat dependency array dievaluasi.)
+  useEffect(() => {
+    if (!isHistoryLoaded || restoredActiveIdRef.current) return
+    try {
+      const activeId = localStorage.getItem(ACTIVE_ID_KEY)
+      if (!activeId) return
+      const now = Date.now()
+      const item = auditHistory.find((h) => h.id === activeId)
+      const expiresAt = item?.expiresAt || (item?.createdAt ? item.createdAt + SESSION_TTL_MS : 0)
+      if (item && now < expiresAt) {
+        restoredActiveIdRef.current = activeId
+        handleLoadHistory(activeId)
+      } else {
+        localStorage.removeItem(ACTIVE_ID_KEY)
+      }
+    } catch {}
+  }, [isHistoryLoaded, auditHistory, handleLoadHistory])
 
   const handleDeleteHistory = useCallback((id) => {
     setAuditHistory((prev) => prev.filter((h) => h.id !== id))
     if (activeHistoryId === id) {
       setActiveHistoryId(null)
       setView('home')
+      // ID aktif tidak lagi valid karena riwayatnya dihapus
+      try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
     }
   }, [activeHistoryId])
 
@@ -486,6 +573,8 @@ export default function Home() {
     setIsAlreadyPaid(false)
     setUnlocked(false)
     setPaid(false)
+    // Semua riwayat dihapus, ID aktif tidak lagi valid
+    try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
   }, [])
 
   const handleDeleteSelectedHistory = useCallback((ids) => {
@@ -498,6 +587,8 @@ export default function Home() {
       setIsAlreadyPaid(false)
       setUnlocked(false)
       setPaid(false)
+      // ID aktif tidak lagi valid karena riwayatnya dihapus
+      try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
     }
   }, [activeHistoryId])
 
@@ -516,6 +607,8 @@ export default function Home() {
     setView('home')
     setActiveHistoryId(null)
     setIsAlreadyPaid(false)
+    // Hapus ID aktif hanya saat pengguna secara eksplisit kembali ke beranda
+    try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
@@ -527,6 +620,8 @@ export default function Home() {
     setIsAlreadyPaid(false)
     setUnlocked(false)
     setPaid(false)
+    // Hapus ID aktif hanya saat pengguna secara eksplisit kembali ke beranda
+    try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
@@ -714,6 +809,13 @@ export default function Home() {
               Admin: {adminConfig.brandName || 'AuditToko AI'}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Toast notifikasi (anti-duplikat riwayat 24 Jam) */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-[10000] px-4 py-3 rounded-xl border bg-emerald-50 text-emerald-700 text-sm font-medium shadow-lg border-emerald-100">
+          {toastMessage}
         </div>
       )}
 

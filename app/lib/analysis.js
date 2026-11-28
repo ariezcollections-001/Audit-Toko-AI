@@ -1481,7 +1481,7 @@ initShopeeDeductionColumns()
       }
       returnedOrders.push({
         orderId: orderId || '-',
-        productName: productName,
+        productName: productNameRaw,
         sku: sku || '-',
         qty: safeQty,
         productPrice: safeProductPrice,
@@ -1570,7 +1570,7 @@ initShopeeDeductionColumns()
     }
 
     // Normalisasi nama produk untuk grouping (case-insensitive, trim, hapus spasi berlebih)
-    const productKey = productName.toLowerCase().replace(/\s+/g, ' ')
+    const productKey = productNameRaw.toLowerCase().replace(/\s+/g, ' ')
 
     // Deteksi offset ongkir: jika Potongan Ongkos Kirim dari Shopee
     // sudah menutupi Ongkos Kirim yang Dibayarkan ke Jasa Kirim,
@@ -1582,7 +1582,7 @@ initShopeeDeductionColumns()
     // DAN tidak ada offset ongkir yang menutup biaya)
     if (!shippingOffset && safeEstShipping > 0 && safeBuyerShipping >= 0 && safeEstShipping > safeBuyerShipping + 5000) {
       claims.push({
-        orderId: orderId || `ORD-${Date.now()}`, product: productName, sku,
+        orderId: orderId || `ORD-${Date.now()}`, product: productNameRaw, sku,
         resi: resi || '-', paidShipping: safeBuyerShipping, estimatedShipping: safeEstShipping,
         difference: safeEstShipping - safeBuyerShipping,
       })
@@ -1613,7 +1613,7 @@ initShopeeDeductionColumns()
         if (selisihOngkir > 0) {
           claims.push({
             orderId: orderId || `ORD-${Date.now()}`,
-            product: productName,
+            product: productNameRaw,
             sku: sku || '-',
             resi: resi || '-',
             difference: selisihOngkir,
@@ -1630,7 +1630,7 @@ initShopeeDeductionColumns()
       if (selisihOngkir > 0) {
         claims.push({
           orderId: `ORD-${Date.now()}`,
-          product: productName,
+          product: productNameRaw,
           sku: sku || '-',
           resi: resi || '-',
           difference: selisihOngkir,
@@ -1644,6 +1644,7 @@ initShopeeDeductionColumns()
     // Hanya untuk baris produk sukses (bukan baris retur, total, atau non-produk)
     // Gunakan Math.abs agar nilai negatif tetap terakumulasi sebagai potongan positif
     // Hindari double-counting: skip kolom yang sudah diproses oleh deduction key lain
+    const usedDeductionCols = new Set()
     deductionColumns.forEach((dc) => {
       const actualCol = findActualDeductionColumn(dc.key, ALIASES[dc.key] || [])
       if (!actualCol || usedDeductionCols.has(actualCol)) return
@@ -1692,7 +1693,7 @@ initShopeeDeductionColumns()
 
     if (!products[productKey]) {
       products[productKey] = {
-        id: productKey, name: productName, sku, orders: 0, unitsSold: 0,
+        id: productKey, name: productNameRaw, sku, orders: 0, unitsSold: 0,
         unitsSoldSuccess: 0, unitsSoldReturned: 0,
         grossRevenue: 0, settlementAmount: 0, settlementAmountSuccess: 0,
         marketplaceFees: 0, shippingCost: 0,
