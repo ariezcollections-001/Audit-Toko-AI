@@ -178,7 +178,8 @@ _add('shippingActual', [
   'ongkir aktual', 'ongkir aktual ekspedisi', 'ongkir ekspedisi', 'ongkir kurir',
   'ongkir sesungguhnya', 'biaya kirim aktual', 'ongkos kirim dibebankan ke penjual',
   'ongkir ditanggung penjual', 'actual shipping fee', 'seller shipping fee',
-  'shipping fee paid by seller', 'courier shipping fee', 'est shipping fee'
+  'shipping fee paid by seller', 'courier shipping fee', 'est shipping fee',
+  'ongkir yang diteruskan oleh shopee ke jasa kirim', 'ongkir diteruskan'
 ])
 
 // ---------- 4. Kata kunci potongan/beban (deductionBreakdown) ----------

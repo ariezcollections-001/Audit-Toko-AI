@@ -15,7 +15,7 @@ import {
   Minimize2,
   Truck,
 } from 'lucide-react'
-import { formatRupiah, formatPercent, calculateRecommendedPrice, generateMassUpdateExcel } from '../lib/analysis.cjs'
+import { formatRupiah, formatPercent, calculateRecommendedPrice, generateMassUpdateExcel, isNonFinancialColumn } from '../lib/analysis.cjs'
 import { idbSave, idbLoad, idbRemove } from '../lib/idb'
 import HppInputTable from './HppInputTable'
 import ProfitLeakTable from './ProfitLeakTable'
@@ -424,6 +424,8 @@ const totalHpp = summary?.totalHpp || 0
                 {summary?.deductionBreakdown?.length > 0 ? (
                   summary.deductionBreakdown
                     .filter((item) => item.amount > 0)
+                    // Blokir kolom non-finansial (tanggal/waktu/dll) agar tidak pernah muncul sebagai baris potongan di UI
+                    .filter((item) => !isNonFinancialColumn(item.label))
                     .map((item) => {
                       const pct = summary?.totalGross ? ((item.amount / summary.totalGross) * 100) : 0
                       return (

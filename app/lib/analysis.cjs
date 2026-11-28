@@ -783,7 +783,9 @@ function smartMapHeaders(rawHeaders, marketplace = 'auto') {
     }
     if (isDuplicate) continue
 
-    if (isCostHeader(header)) {
+    // Blokir kolom non-finansial (tanggal/waktu/id/status/dll) agar tidak pernah
+    // masuk sebagai cost_* / deductionBreakdown meski mengandung kata kunci biaya.
+    if (!isNonFinancialColumn(header) && isCostHeader(header)) {
       mapping[`cost_${i}`] = original
       usedIndices.add(i)
     }
@@ -1405,6 +1407,7 @@ initShopeeDeductionColumns()
     const shippingRevenue = get(row, 'shippingRevenue', ['Pendapatan Ongkir', 'ongkir pendapatan', 'shipping revenue', 'pendapatan ongkos kirim'])
     const shippingBorneBySeller = get(row, 'shippingBorneBySeller', ['Ongkir Ditanggung Penjual', 'ongkir ditanggung penjual', 'shipping borne by seller', 'ongkir tanggung penjual'])
     const shippingActualCourier = get(row, 'shippingActualCourier', ['Ongkir Aktual Ekspedisi', 'ongkir aktual ekspedisi', 'actual shipping courier', 'ongkir aktual'])
+    const gratisOngkirShopee = get(row, 'gratisOngkirShopee', ['Gratis Ongkir dari Shopee', 'gratis ongkir dari shopee', 'subsidi ongkir shopee', 'ongkir gratis shopee'])
     const shippingFeeDiscrepancy = get(row, 'shippingFeeDiscrepancy', ['Shipping Fee Discrepancy', 'selisih ongkir pembelian', 'perbedaan ongkir pembelian', 'shipping fee diff'])
     const shippingDifference = get(row, 'shippingDifference', ['Selisih Ongkir', 'selisih Ongkir', 'shipping difference', 'selisih biaya kirim', 'selisih ongkos kirim', 'shipping diff', 'selisih ongkir shopee', 'perbedaan ongkir'])
 
@@ -1430,6 +1433,7 @@ initShopeeDeductionColumns()
     const safeShippingRevenue = isFinite(shippingRevenue) ? shippingRevenue : 0
     const safeShippingBorneBySeller = isFinite(shippingBorneBySeller) ? shippingBorneBySeller : 0
     const safeShippingActualCourier = isFinite(shippingActualCourier) ? shippingActualCourier : 0
+    const safeGratisOngkirShopee = isFinite(gratisOngkirShopee) ? gratisOngkirShopee : 0
     const safeShippingFeeDiscrepancy = isFinite(shippingFeeDiscrepancy) ? shippingFeeDiscrepancy : 0
     const safeShippingDifference = isFinite(shippingDifference) ? shippingDifference : 0
 
@@ -1593,11 +1597,11 @@ initShopeeDeductionColumns()
     }
 
     // --- Deteksi Selisih Ongkir Bersih per Baris Pesanan (hanya baris sukses) ---
-    // selisihOngkir = Math.max(0, |shippingActual| - |shippingBuyer|)
+    // selisihOngkir = Math.max(0, |shippingActual| - (|shippingBuyer| + |gratisOngkirShopee|))
     // Hanya hitung jika selisihOngkir > 0 (beban penjual nyata, tidak impas)
     const shippingBuyer = safeShippingRevenue || safeBuyerShipping
-    const shippingActual = safeShippingBorneBySeller || safeShippingActualCourier || safeShippingPaidToCourier
-    const selisihOngkir = Math.max(0, Math.abs(shippingActual || 0) - Math.abs(shippingBuyer || 0))
+    const shippingActual = safeShippingBorneBySeller || safeShippingActualCourier || safeShippingPaidToCourier || get(row, 'shippingActual')
+    const selisihOngkir = Math.max(0, Math.abs(shippingActual || 0) - (Math.abs(shippingBuyer || 0) + Math.abs(safeGratisOngkirShopee || 0)))
 
     // Simpan ke properti produk untuk referensi Sheet 2 / detail
     const pForDiff = products[productKey]
@@ -1652,6 +1656,8 @@ initShopeeDeductionColumns()
     deductionColumns.forEach((dc) => {
       const actualCol = findActualDeductionColumn(dc.key, ALIASES[dc.key] || [])
       if (!actualCol || usedDeductionCols.has(actualCol)) return
+      // Blokir kolom non-finansial (tanggal/waktu/dll) dari rincian potongan
+      if (isNonFinancialColumn(actualCol)) return
       usedDeductionCols.add(actualCol)
       const val = toNumber(row[actualCol] || 0)
       if (val !== 0) {
@@ -1664,6 +1670,8 @@ initShopeeDeductionColumns()
 
     // Akumulasi kolom potongan tambahan dari deteksi otomatis (cost_*)
     deductionCostKeys.forEach((dc) => {
+      // Blokir kolom non-finansial (tanggal/waktu/dll) dari rincian potongan
+      if (isNonFinancialColumn(dc.label)) return
       const val = get(row, dc.key)
       if (val !== 0) {
         if (!deductionBreakdownMap[dc.label]) {
@@ -2628,5 +2636,6 @@ module.exports = {
   FAKE_STAR_MARGIN_THRESHOLD,
   calculateRecommendedPrice,
   generateMassUpdateExcel,
-  calculateAnalysis
+  calculateAnalysis,
+  isNonFinancialColumn
 };
