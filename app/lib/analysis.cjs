@@ -2615,6 +2615,8 @@ module.exports = {
   normalizeHeader,
   smartMapHeaders,
   parseNumberUniversal,
+  formatRupiah,
+  formatPercent,
   findHeaderRow,
   scanAllSheets,
   validateExcelFile,
@@ -2625,5 +2627,6 @@ module.exports = {
   DEFAULT_TARGET_PROFIT,
   FAKE_STAR_MARGIN_THRESHOLD,
   calculateRecommendedPrice,
+  generateMassUpdateExcel,
   calculateAnalysis
 };
