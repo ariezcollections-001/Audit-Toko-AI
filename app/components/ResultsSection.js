@@ -617,9 +617,9 @@ const totalHpp = summary?.totalHpp || 0
               <p className="text-[10px] text-emerald-100">Admin + Ongkir pesanan retur</p>
             </div>
             <div>
-              <p className="text-emerald-200 text-xs">− Selisih Ongkir (Beban Penjual)</p>
+              <p className="text-emerald-200 text-xs">Info Audit: Selisih Ongkir (Beban Penjual)</p>
               <p className="text-sm font-bold text-red-200">{formatRupiah(summary?.shippingDifferenceTotal ?? 0)}</p>
-              <p className="text-[10px] text-emerald-100">Selisih ongkir per pesanan (beban penjual)</p>
+              <p className="text-[10px] text-emerald-100">Sudah terpotong otomatis di Dana Bersih Cair</p>
             </div>
             <div>
               <p className="text-emerald-200 text-xs">= Laba Bersih Sesungguhnya</p>

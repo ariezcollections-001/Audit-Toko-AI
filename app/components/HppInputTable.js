@@ -413,7 +413,7 @@ export default function HppInputTable({
                     </td>
                     <td className="px-6 py-3 text-right text-xs text-gray-700">{r.qty}</td>
                     <td className="px-6 py-3 text-right text-xs text-gray-700">{formatRupiah(r.productPrice)}</td>
-                    <td className="px-6 py-3 text-right text-xs text-red-600 font-semibold">-{formatRupiah(r.refundAmount)}</td>
+                    <td className="px-6 py-3 text-right text-xs text-red-600 font-semibold">-{formatRupiah(Math.abs(r.refundAmount || 0))}</td>
                     <td className="px-6 py-3 text-right text-xs text-red-600 font-semibold">-{formatRupiah(r.lostFeeAmount)}</td>
                   </tr>
                 ))}
@@ -426,7 +426,7 @@ export default function HppInputTable({
                   </td>
                   <td className="px-6 py-3 text-right text-xs text-gray-500"></td>
                   <td className="px-6 py-3 text-right text-xs font-semibold text-red-700">
-                    -{formatRupiah(returnedOrders.reduce((acc, r) => acc + r.refundAmount, 0))}
+                    -{formatRupiah(Math.abs(returnedOrders.reduce((acc, r) => acc + (r.refundAmount || 0), 0)))}
                   </td>
                   <td className="px-6 py-3 text-right text-xs font-semibold text-red-700">
                     -{formatRupiah(returnedOrders.reduce((acc, r) => acc + r.lostFeeAmount, 0))}

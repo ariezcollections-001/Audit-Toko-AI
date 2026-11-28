@@ -235,7 +235,7 @@ const COLUMN_ALIASES = {
   refund: [
     'refund', 'pengembalian dana', 'nominal pengembalian dana', 'jumlah pengembalian dana',
     'pengembalian', 'biaya retur', 'retur', 'return', 'total pengembalian',
-    'pengembalian dana pembeli', 'biaya pengembalian', 'nominal retur', 'jumlah retur',
+    'pengembalian dana pembeli', 'pengembalian dana ke pembeli', 'biaya pengembalian', 'nominal retur', 'jumlah retur',
     'refund pembeli', 'total refund', 'pengembalian uang'
   ],
   orderStatus: [
@@ -2223,25 +2223,32 @@ function generateMassUpdateExcel(
   const labaBersih = settlementAmount - totalPengeluaranInternal - totalRefundCosts
   const marginLabaBersih = totalGross > 0 ? labaBersih / totalGross : 0
 
-  // Total selisih ongkir dari hasil analisis (semua variasi kolom ongkir)
-  const totalSelisihOngkir = Number(summary?.shippingDifferenceTotal || summary?.claimAmount || 0)
-
   // Proyeksi baru berdasarkan rekomendasi harga .900 (Sheet 1)
-  // Hitung dari array `rows` (data Sheet 1) karena `newPrice` & `estProfit`
-  // hanya tersedia di sana, tidak pada objek `products` asli.
-  let estimasiTotalLabaBaru = 0
+  // Estimasi Total Laba Bersih Baru = Laba Bersih Toko Sesungguhnya + total kenaikan profit
+  // dari produk yang HPP-nya sudah diisi dan harga jual barunya berubah.
+  // Jika semua produk Belum Diisi HPP atau total kenaikan profit = 0,
+  // Estimasi = Laba Bersih Toko Sesungguhnya dan Potensi Kenaikan = 0.
+  let totalProfitIncrease = 0
+  let hasAnyHppUpdated = false
   for (const r of rows) {
     const units = r.unitsSold || 0
     if (r.hasHpp && r.newPrice && r.newPrice > 0) {
-      estimasiTotalLabaBaru += (r.estProfit || 0) * units
-    } else if (!r.hasHpp) {
-      // Produk Belum Diisi HPP: gunakan Laba/Rugi Lama sebagai basis agar proyeksi tidak minus
-      estimasiTotalLabaBaru += (r.oldProfit || 0) * units
+      const oldProfitUnit = r.oldProfit || 0
+      const newProfitUnit = r.estProfit || 0
+      totalProfitIncrease += (newProfitUnit - oldProfitUnit) * units
+      hasAnyHppUpdated = true
     }
   }
-  // Kurangi beban retur & selisih ongkir agar laba bersih baru akurat
-  estimasiTotalLabaBaru = estimasiTotalLabaBaru - totalRefundCosts - totalSelisihOngkir
-  const potensiKenaikanProfit = estimasiTotalLabaBaru - labaBersih
+
+  let estimasiTotalLabaBaru
+  let potensiKenaikanProfit
+  if (!hasAnyHppUpdated || totalProfitIncrease === 0) {
+    estimasiTotalLabaBaru = labaBersih
+    potensiKenaikanProfit = 0
+  } else {
+    estimasiTotalLabaBaru = labaBersih + totalProfitIncrease
+    potensiKenaikanProfit = totalProfitIncrease
+  }
 
   // Pecahan potongan per kolom asli Excel (dari deductionBreakdown)
   const deductionBreakdown = Array.isArray(summary?.deductionBreakdown) ? summary.deductionBreakdown : []
@@ -2305,14 +2312,35 @@ function generateMassUpdateExcel(
   // --- 3. RINCIAN KOMPONEN POTONGAN & KEBOCORAN DANA ---
   addSection('3. RINCIAN KOMPONEN POTONGAN & KEBOCORAN DANA')
   if (deductionBreakdown.length > 0) {
+    let breakdownTotal = 0
     for (const item of deductionBreakdown) {
-      addRow(String(item.label || 'Potongan Lainnya'), Number(item.amount || 0), '"Rp"#,##0')
+      const amt = Number(item.amount || 0)
+      if (amt > 0) {
+        addRow(String(item.label || 'Potongan Lainnya'), amt, '"Rp"#,##0')
+        breakdownTotal += amt
+      }
+    }
+    // totalRefundCosts tidak ada di deductionBreakdown (dc.key === 'refund' diabaikan saat build map)
+    // Cetak sebagai baris terpisah
+    if (totalRefundCosts > 0) {
+      addRow('Total Biaya Hangus Akibat Retur / Batal', totalRefundCosts, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
+      breakdownTotal += totalRefundCosts
+    }
+    // Pastikan penjumlahan rincian cocok 100% dengan Total Potongan Marketplace (Bagian 2)
+    const selisihPenyesuaian = totalGrossDeduction - breakdownTotal
+    if (selisihPenyesuaian > 0) {
+      addRow('Rincian Lainnya (Penyesuaian)', selisihPenyesuaian, '"Rp"#,##0')
     }
   } else {
     addRow('Tidak ada data pecahan potongan yang terbaca dari file', 0, '"Rp"#,##0')
+    if (totalRefundCosts > 0) {
+      addRow('Total Biaya Hangus Akibat Retur / Batal', totalRefundCosts, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
+    }
+    const selisihPenyesuaian = totalGrossDeduction - totalRefundCosts
+    if (selisihPenyesuaian > 0) {
+      addRow('Rincian Lainnya (Penyesuaian)', selisihPenyesuaian, '"Rp"#,##0')
+    }
   }
-  addRow('Total Selisih Ongkir (Beban Penjual)', totalSelisihOngkir, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
-  addRow('Total Biaya Hangus Akibat Retur / Batal', totalRefundCosts, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
   addRow('Jumlah Pesanan Retur / Batal', returnedOrdersCount, '0')
 
   // --- 4. PENGELUARAN INTERNAL & LABA BERSIH TOKO ---
