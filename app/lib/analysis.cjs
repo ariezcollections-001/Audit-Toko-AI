@@ -2205,7 +2205,15 @@ function generateMassUpdateExcel(
   // SHEET 2: Ringkasan_Audit_Toko
   // ================================================================
   const fileNameLabel = fileName || 'Laporan Audit Toko.xlsx'
-  const marketplaceLabel = marketplace || 'Marketplace'
+  const MARKETPLACE_DISPLAY_NAMES = {
+    auto: 'Terdeteksi Otomatis',
+    shopee: 'Shopee',
+    tiktok: 'TikTok Shop',
+    tokopedia: 'Tokopedia',
+    lazada: 'Lazada',
+    bukalapak: 'Bukalapak'
+  }
+  const marketplaceLabel = MARKETPLACE_DISPLAY_NAMES[marketplace] || marketplace || 'Marketplace'
 
   const totalGross = Number(summary?.totalGross || 0)
   const totalGrossDeduction = Number(summary?.totalGrossDeduction || 0)
@@ -2214,6 +2222,7 @@ function generateMassUpdateExcel(
   const totalPackingAll = Number(summary?.totalPacking || 0)
   const totalAdCost = Number(summary?.totalAdCost || adCostPeriod || 0)
   const totalRefundCosts = Number(summary?.totalRefundCosts || summary?.biayaHangusRetur || 0)
+  const totalSelisihOngkir = Number(summary?.shippingDifferenceTotal || summary?.claimAmount || 0)
   const returnedOrdersCount = Array.isArray(summary?.returnedOrders) ? summary.returnedOrders.length : 0
   const totalUnitsSuccess = Number(summary?.totalUnitsSuccess || 0)
   const totalOrders = Number(summary?.totalOrders || 0)
@@ -2320,6 +2329,11 @@ function generateMassUpdateExcel(
         breakdownTotal += amt
       }
     }
+    // Cetak baris Info Audit: Selisih Ongkir (Beban Penjual) jika nilainya > 0
+    if (totalSelisihOngkir > 0) {
+      addRow('Info Audit: Selisih Ongkir (Beban Penjual)', totalSelisihOngkir, '"Rp"#,##0')
+      breakdownTotal += totalSelisihOngkir
+    }
     // totalRefundCosts tidak ada di deductionBreakdown (dc.key === 'refund' diabaikan saat build map)
     // Cetak sebagai baris terpisah
     if (totalRefundCosts > 0) {
@@ -2333,10 +2347,13 @@ function generateMassUpdateExcel(
     }
   } else {
     addRow('Tidak ada data pecahan potongan yang terbaca dari file', 0, '"Rp"#,##0')
+    if (totalSelisihOngkir > 0) {
+      addRow('Info Audit: Selisih Ongkir (Beban Penjual)', totalSelisihOngkir, '"Rp"#,##0')
+    }
     if (totalRefundCosts > 0) {
       addRow('Total Biaya Hangus Akibat Retur / Batal', totalRefundCosts, '"Rp"#,##0', LABEL_BOLD_FONT, VALUE_BOLD_FONT)
     }
-    const selisihPenyesuaian = totalGrossDeduction - totalRefundCosts
+    const selisihPenyesuaian = totalGrossDeduction - totalSelisihOngkir - totalRefundCosts
     if (selisihPenyesuaian > 0) {
       addRow('Rincian Lainnya (Penyesuaian)', selisihPenyesuaian, '"Rp"#,##0')
     }

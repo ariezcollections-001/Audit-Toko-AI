@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { formatRupiah } from '../lib/analysis.cjs'
 import { DollarSign, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 
-export default function HppInputTable({
+function HppInputTable({
   products,
   onHppChange,
   packingCost = 0,
@@ -461,5 +461,16 @@ export default function HppInputTable({
       </>
       )}
   </div>
-)
+  )
 }
+
+export default React.memo(HppInputTable, (prev, next) => {
+  // Hindari re-render jika semua props relevan sama referensinya (cegah input HPP hilang saat zoom/adCost berubah)
+  if (prev.products !== next.products) return false
+  if (prev.adCostPeriod !== next.adCostPeriod) return false
+  if (prev.packingCost !== next.packingCost) return false
+  if (prev.isPaid !== next.isPaid) return false
+  if (prev.returnedOrders !== next.returnedOrders) return false
+  if (prev.isZoomed !== next.isZoomed) return false
+  return true
+})
