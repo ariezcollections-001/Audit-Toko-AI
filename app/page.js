@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Loader2, CheckCircle2 } from 'lucide-react'
 import Header from './components/Header'
 import BrandLogo from './components/BrandLogo'
 import UploadSection from './components/UploadSection'
@@ -194,7 +194,6 @@ export default function Home() {
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
   const [downloadGuideModalOpen, setDownloadGuideModalOpen] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
-  const [confirmResetData, setConfirmResetData] = useState(false)
 
   // Selalu scroll ke paling atas saat halaman di-refresh atau dimuat ulang
   // (baik halaman beranda maupun halaman hasil analisis)
@@ -892,22 +891,6 @@ export default function Home() {
   }, [activeHistoryId])
 
   const handleClearAllHistory = useCallback(async () => {
-    setAuditHistory([])
-    setActiveHistoryId(null)
-    setView('home')
-    setAnalysisResult(null)
-    setFileData(null)
-    setIsAlreadyPaid(false)
-    setUnlocked(false)
-    setPaid(false)
-    // Semua riwayat dihapus, ID aktif tidak lagi valid
-    if (IS_CLIENT) {
-      try { await idbRemove(ACTIVE_ID_KEY) } catch {}
-    }
-  }, [])
-
-  // Hapus semua data di IndexedDB dan kembalikan tampilan ke 0 (tombol Reset Data)
-  const handleResetData = useCallback(async () => {
     if (!IS_CLIENT) return
     try {
       await idbClearAll()
@@ -926,6 +909,7 @@ export default function Home() {
     setTargetProfit(0.15)
     setExpiresAt(null)
     setDetectedFormat(null)
+    try { await idbRemove(ACTIVE_ID_KEY) } catch {}
     showToast('Semua data telah dihapus.')
   }, [showToast])
 
@@ -1531,55 +1515,6 @@ export default function Home() {
             {auditHistory.length === 0 && (
               <p className="text-sm text-slate-500 text-center mt-8">Belum ada riwayat audit di perangkat ini.</p>
             )}
-            {/* Tombol Reset Data */}
-            {auditHistory.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <button
-                  onClick={() => setConfirmResetData(true)}
-                  className="w-full py-3 rounded-lg border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition-colors"
-                >
-                  Reset Data (Hapus Semua Data)
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Konfirmasi Reset Data */}
-      {confirmResetData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl border border-slate-200 w-full max-w-md mx-4 transform transition-all">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">
-                  Konfirmasi Reset Data
-                </h3>
-                <p className="text-slate-600 text-sm">
-                  Yakin ingin menghapus semua data di perangkat ini? Riwayat audit,
-                  hasil analisis, input HPP, biaya packing, dan semua pengaturan akan
-                  dikembalikan ke 0. Tindakan ini tidak dapat dibatalkan.
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 flex items-center gap-3">
-              <button
-                onClick={() => setConfirmResetData(false)}
-                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleResetData}
-                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
-              >
-                Ya, Reset Semua Data
-              </button>
-            </div>
           </div>
         </div>
       )}
