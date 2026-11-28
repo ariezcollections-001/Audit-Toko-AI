@@ -264,7 +264,7 @@ const totalHpp = summary?.totalHpp || 0
     }, 0)
 
     const labaBersih = isFinite(totalSettlement) && isFinite(totalHpp)
-      ? totalSettlement - totalHpp - totalPackingFromTable - adCostPeriod - (summary?.totalRefundCosts ?? 0)
+      ? totalSettlement - totalHpp - totalPackingFromTable - adCostPeriod - (summary?.totalReturnLoss ?? summary?.totalRefundCosts ?? 0)
       : 0
     const marginBersih =
       totalSettlement > 0 ? (labaBersih / totalSettlement) * 100 : 0

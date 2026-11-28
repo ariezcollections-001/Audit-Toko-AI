@@ -1905,8 +1905,8 @@ initShopeeDeductionColumns()
     totalAdCost: adCost,
     // Langkah 3: Laba Bersih Sesungguhnya = Dana Bersih Cair - Modal HPP - Packing - Iklan
     labaBersihSesungguhnya: isFinite(baseSettlementAmount) && isFinite(totalHppVal) && isFinite(totalPackingVal) && isFinite(totalAdCostVal)
-      ? baseSettlementAmount - totalHppVal - totalPackingVal - totalAdCostVal
-      : baseSettlementAmount,
+      ? baseSettlementAmount - totalHppVal - totalPackingVal - totalAdCostVal - totalRefundCosts
+      : baseSettlementAmount - totalRefundCosts,
     // globalDeductions dikurangkan dari netProfit agar laba bersih benar-benar akurat
     netProfit: safeReduce(dedupedProductList, 'netProfit') - (isFinite(globalDeductions) ? globalDeductions : 0),
     totalLoss: safeReduce(lossProducts, 'netProfit') < 0 ? Math.abs(safeReduce(lossProducts, 'netProfit')) : 0,
@@ -1926,6 +1926,9 @@ initShopeeDeductionColumns()
     fakeStarCount: fakeStarProducts.length,
     totalRefundCosts: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
     biayaHangusRetur: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
+    // Beban retur (total return loss) — hanya baris isReturned yang terakumulasi di sini,
+    // memotong Laba Bersih Toko. Baris isCancelled tidak berkontribusi apa pun.
+    totalReturnLoss: isFinite(totalRefundCosts) ? totalRefundCosts : 0,
     shippingDifferenceTotal: summaryShippingDiffTotal,
     globalDeductions: isFinite(globalDeductions) ? globalDeductions : 0,
     returnedOrders: returnedOrders,
@@ -1950,6 +1953,13 @@ initShopeeDeductionColumns()
     let emergencyGross = 0
     let emergencyNet = 0
     for (const row of rows) {
+      // Safety net juga harus mengecualikan baris batal dan retur,
+      // agar totalGrossSales, totalDeductions, dan totalSettlement
+      // hanya mencakup pesanan selesai.
+      const _safetyStatus = getStr(row, 'status', ['Status Pesanan', 'status', 'status pesanan', 'order status', 'order_status', 'Status Settlement', 'status settlement'])
+      const _safetyStatusClass = classifyOrderStatus(_safetyStatus)
+      if (_safetyStatusClass === 'cancelled' || _safetyStatusClass === 'returned') continue
+
       // Cari kolom gross per baris (normalized match)
       for (const h of Object.keys(row)) {
         const nh = normalizeHeader(h)
