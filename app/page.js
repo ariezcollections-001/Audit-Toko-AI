@@ -21,14 +21,27 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 /**
  * Bersihkan riwayat kedaluwarsa (>24 jam sejak createdAt) dari localStorage
  * dan kembalikan hanya item yang masih valid.
- * Dipanggil setiap kali perlu memastikan riwayat tidak mengandung item expired.
+ * Item yang melewati 24 jam (Date.now() - item.createdAt >= SESSION_TTL_MS)
+ * dihapus permanen dari localStorage sehingga tidak pernah ditampilkan maupun
+ * diambil kembali.
+ *
+ * Juga membersihkan audittoko_active_id jika riwayat yang menjadi referensinya
+ * sudah dihapus atau sudah kedaluwarsa, sehingga ID aktif tidak pernah merujuk
+ * ke riwayat yang tidak ada / expired.
  */
 const getValidHistory = () => {
   try {
     const saved = localStorage.getItem(HISTORY_KEY)
-    if (!saved) return []
+    if (!saved) {
+      localStorage.removeItem(ACTIVE_ID_KEY)
+      return []
+    }
     const parsed = JSON.parse(saved)
-    if (!Array.isArray(parsed)) return []
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem(HISTORY_KEY)
+      localStorage.removeItem(ACTIVE_ID_KEY)
+      return []
+    }
     const now = Date.now()
     const valid = parsed.filter((item) => {
       const createdAt = item.createdAt || (item.uploadedAt ? new Date(item.uploadedAt).getTime() : 0)
@@ -36,6 +49,11 @@ const getValidHistory = () => {
     })
     // Simpan kembali hanya yang valid (menghapus permanen yang expired dari localStorage)
     localStorage.setItem(HISTORY_KEY, JSON.stringify(valid))
+    // Bersihkan audittoko_active_id jika item aktif sudah dihapus atau kedaluwarsa
+    const activeId = localStorage.getItem(ACTIVE_ID_KEY)
+    if (activeId && !valid.some((h) => h.id === activeId)) {
+      localStorage.removeItem(ACTIVE_ID_KEY)
+    }
     return valid
   } catch {
     return []
@@ -314,15 +332,29 @@ export default function Home() {
   // Deteksi lewat 24 jam sejak upload pertama (expiresAt) setiap 30 detik.
   // Jika Date.now() >= expiresAt, hapus seluruh progres dari localStorage
   // dan reset state agar pelanggan memulai sesi baru.
+  // Secara berkala juga memastikan riwayat kedaluwarsa (>24 jam) sudah dibuang
+  // permanen dari localStorage dan audittoko_active_id tidak pernah dangling.
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now()
       try {
+        // 1. PAPATI riwayat kedaluwarsa (>24 jam) dari localStorage dan bersihkan
+        //    audittoko_active_id yang merujuk ke item yang sudah tidak valid.
+        const valid = getValidHistory()
+        const currentIds = auditHistoryRef.current.map((h) => h.id).sort()
+        const validIds = valid.map((h) => h.id).sort()
+        if (JSON.stringify(currentIds) !== JSON.stringify(validIds)) {
+          setAuditHistory(valid)
+        }
+
+        // 2. Deteksi lewat 24 jam sejak upload pertama (expiresAt session progress)
         const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
         if (saved) {
           const parsed = JSON.parse(saved)
           if (parsed.expiresAt && now >= parsed.expiresAt) {
             localStorage.removeItem(SESSION_PROGRESS_KEY)
+            // Riwayat sesi sudah kedaluwarsa: hapus juga audittoko_active_id
+            localStorage.removeItem(ACTIVE_ID_KEY)
             setExpiresAt(null)
             setHppInputs({})
             setPackingCost(2000)
