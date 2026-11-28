@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import Header from './components/Header'
 import BrandLogo from './components/BrandLogo'
 import UploadSection from './components/UploadSection'
@@ -10,49 +10,51 @@ import Footer from './components/Footer'
 import AuditHistoryList from './components/AuditHistoryList'
 import AiChatWidget from './components/AiChatWidget'
 import { calculateAnalysis, smartMapHeaders, formatRupiah } from './lib/analysis.cjs'
+import {
+  idbSave,
+  idbLoad,
+  idbRemove,
+  idbClearAll,
+  idbGetAll,
+} from './lib/idb'
 import './globals.css'
 
 const HISTORY_KEY = 'audit_history_list'
 const MAX_HISTORY = 10
 const SESSION_PROGRESS_KEY = 'audit_session_progress'
 const ACTIVE_ID_KEY = 'audittoko_active_id' // ID laporan aktif yang tahan refresh browser (F5)
+const VIEW_KEY = 'audit_view'
+const USED_VOUCHERS_KEY = 'audit_used_vouchers'
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 jam penuh
 
+const IS_CLIENT = typeof window !== 'undefined'
+
 /**
- * Bersihkan riwayat kedaluwarsa (>24 jam sejak createdAt) dari localStorage
+ * Bersihkan riwayat kedaluwarsa (>24 jam sejak createdAt) dari IndexedDB
  * dan kembalikan hanya item yang masih valid.
- * Item yang melewati 24 jam (Date.now() - item.createdAt >= SESSION_TTL_MS)
- * dihapus permanen dari localStorage sehingga tidak pernah ditampilkan maupun
- * diambil kembali.
- *
- * Juga membersihkan audittoko_active_id jika riwayat yang menjadi referensinya
- * sudah dihapus atau sudah kedaluwarsa, sehingga ID aktif tidak pernah merujuk
- * ke riwayat yang tidak ada / expired.
  */
-const getValidHistory = () => {
+async function getValidHistory() {
+  if (!IS_CLIENT) return []
   try {
-    const saved = localStorage.getItem(HISTORY_KEY)
+    const saved = await idbLoad(HISTORY_KEY)
     if (!saved) {
-      localStorage.removeItem(ACTIVE_ID_KEY)
+      await idbRemove(ACTIVE_ID_KEY)
       return []
     }
-    const parsed = JSON.parse(saved)
-    if (!Array.isArray(parsed)) {
-      localStorage.removeItem(HISTORY_KEY)
-      localStorage.removeItem(ACTIVE_ID_KEY)
-      return []
-    }
+    const parsed = Array.isArray(saved) ? saved : []
     const now = Date.now()
     const valid = parsed.filter((item) => {
       const createdAt = item.createdAt || (item.uploadedAt ? new Date(item.uploadedAt).getTime() : 0)
       return createdAt > 0 && now - createdAt < SESSION_TTL_MS
     })
-    // Simpan kembali hanya yang valid (menghapus permanen yang expired dari localStorage)
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(valid))
+    // Simpan kembali hanya yang valid (menghapus permanen yang expired)
+    if (valid.length !== parsed.length) {
+      await idbSave(HISTORY_KEY, valid)
+    }
     // Bersihkan audittoko_active_id jika item aktif sudah dihapus atau kedaluwarsa
-    const activeId = localStorage.getItem(ACTIVE_ID_KEY)
+    const activeId = await idbLoad(ACTIVE_ID_KEY)
     if (activeId && !valid.some((h) => h.id === activeId)) {
-      localStorage.removeItem(ACTIVE_ID_KEY)
+      await idbRemove(ACTIVE_ID_KEY)
     }
     return valid
   } catch {
@@ -62,30 +64,41 @@ const getValidHistory = () => {
 
 export default function Home() {
   // View state: 'home' (Tampilan 1) | 'results' (Tampilan 2)
-  // Di-persist ke localStorage agar tidak kembali ke beranda saat refresh
+  // Di-persist ke IndexedDB agar tidak kembali ke beranda saat refresh
   // Diinisialisasi 'home' agar konsisten antara server dan client saat SSR/hydrasi.
-  // Nilai dari localStorage di-sinkronkan setelah montase via useEffect di bawah.
+  // Nilai dari IndexedDB di-sinkronkan setelah montase via useEffect di bawah.
   const [view, setView] = useState('home')
   // isHydrated digunakan agar selama hydrasi (pertama kali client render)
   // konten menampilkan skeleton yang sama antara server dan client,
   // menghindari flash halaman beranda sebelum pindah ke view yang benar.
   const [isHydrated, setIsHydrated] = useState(false)
 
-  // Baca view yang disimpan dari localStorage setelah komponen montase (client only)
+  // Baca view yang disimpan dari IndexedDB setelah komponen montase (client only)
   // agar tidak terjadi hydration mismatch saat refresh halaman.
-  // Safety timeout memastikan spinner tidak putar terus jika useEffect terlambat.
+  // isHydrated hanya true setelah pemulihan view selesai, sehingga tidak ada
+  // flash halaman home sebelum pindah ke mode audit saat refresh.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('audit_view')
-      if (saved === 'results') setView('results')
-    } catch {}
-
-    const timer = setTimeout(() => setIsHydrated(true), 300)
-    return () => clearTimeout(timer)
+    let mounted = true
+    ;(async () => {
+      if (!IS_CLIENT || !mounted) return
+      try {
+        const saved = await idbLoad(VIEW_KEY)
+        if (saved === 'results') setView('results')
+      } catch {}
+      if (mounted) setIsHydrated(true)
+    })()
+    return () => {
+      mounted = false
+    }
   }, [])
 
   useEffect(() => {
-    try { localStorage.setItem('audit_view', view) } catch {}
+    if (!IS_CLIENT) return
+    ;(async () => {
+      try {
+        await idbSave(VIEW_KEY, view)
+      } catch {}
+    })()
   }, [view])
 
   // Analysis state
@@ -181,6 +194,7 @@ export default function Home() {
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
   const [downloadGuideModalOpen, setDownloadGuideModalOpen] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [confirmResetData, setConfirmResetData] = useState(false)
 
   // Selalu scroll ke paling atas saat halaman di-refresh atau dimuat ulang
   // (baik halaman beranda maupun halaman hasil analisis)
@@ -194,13 +208,18 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [view])
 
-  // Load history dari localStorage saat mount (hanya item valid & belum kedaluwarsa 24 jam)
+  // Load history dari IndexedDB saat mount (hanya item valid & belum kedaluwarsa 24 jam)
   useEffect(() => {
-    try {
-      const valid = getValidHistory()
-      setAuditHistory(valid)
-    } catch {}
-    setIsHistoryLoaded(true)
+    let mounted = true
+    ;(async () => {
+      if (!IS_CLIENT || !mounted) return
+      try {
+        const valid = await getValidHistory()
+        if (mounted) setAuditHistory(valid)
+      } catch {}
+      if (mounted) setIsHistoryLoaded(true)
+    })()
+    return () => { mounted = false }
   }, [])
 
   // Load admin config dari /api/admin (brandName, logo, auditPrice, maintenanceMode, dll.)
@@ -250,67 +269,78 @@ export default function Home() {
     return () => { mounted = false }
   }, [])
 
-  // Load progres sesi (HPP, Packing, Iklan, Status Lunas) dari localStorage saat mount
+  // Load progres sesi (HPP, Packing, Iklan, Status Lunas) dari IndexedDB saat mount
   // Hanya di-restor jika belum melewati expiresAt (24 jam sejak upload pertama)
   useEffect(() => {
+    let mounted = true
     const now = Date.now()
-    try {
-      const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.expiresAt && now < parsed.expiresAt && !isRestoringRef.current) {
-          isRestoringRef.current = true
-          setExpiresAt(parsed.expiresAt)
-          setHppInputs(parsed.hppInputs || {})
-          setPackingCost(parsed.packingCost || 2000)
-          setAdCost(parsed.adCost || 0)
-          setTargetProfit(parsed.targetProfit || 0.15)
-          setUnlocked(parsed.unlocked || false)
-          setPaid(parsed.paid || false)
-          setIsAlreadyPaid(parsed.isAlreadyPaid || false)
-        } else if (parsed.expiresAt && now >= parsed.expiresAt) {
-          localStorage.removeItem(SESSION_PROGRESS_KEY)
+    ;(async () => {
+      if (!IS_CLIENT || !mounted) return
+      try {
+        const saved = await idbLoad(SESSION_PROGRESS_KEY)
+        if (saved) {
+          const parsed = saved
+          if (parsed.expiresAt && now < parsed.expiresAt && !isRestoringRef.current) {
+            isRestoringRef.current = true
+            setExpiresAt(parsed.expiresAt)
+            setHppInputs(parsed.hppInputs || {})
+            setPackingCost(parsed.packingCost || 2000)
+            setAdCost(parsed.adCost || 0)
+            setTargetProfit(parsed.targetProfit || 0.15)
+            setUnlocked(parsed.unlocked || false)
+            setPaid(parsed.paid || false)
+            setIsAlreadyPaid(parsed.isAlreadyPaid || false)
+          } else if (parsed.expiresAt && now >= parsed.expiresAt) {
+            await idbRemove(SESSION_PROGRESS_KEY)
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    })()
+    return () => { mounted = false }
   }, [])
 
-  // Simpan history ke localStorage setiap kali berubah
+  // Simpan history ke IndexedDB setiap kali berubah
   useEffect(() => {
     if (!isHistoryLoaded) return
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(auditHistory))
-    } catch {}
+    if (!IS_CLIENT) return
+    ;(async () => {
+      try {
+        await idbSave(HISTORY_KEY, auditHistory)
+      } catch {}
+    })()
   }, [auditHistory, isHistoryLoaded])
 
-  // Simpan progres sesi (HPP, Packing, Iklan, Status Lunas, Target Profit) ke localStorage
+  // Simpan progres sesi (HPP, Packing, Iklan, Status Lunas, Target Profit) ke IndexedDB
   // setiap kali nilai berubah. createdAt & expiresAt di-set hanya sekali di handleFileProcessed,
   // jadi tidak di-reset saat pengguna hanya mengedit input.
   useEffect(() => {
+    if (!IS_CLIENT) return
     if (isRestoringRef.current) {
       isRestoringRef.current = false
       return
     }
-    try {
-      const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
-      let existing = { createdAt: null, expiresAt: null }
-      if (saved) {
-        try { existing = JSON.parse(saved) } catch {}
-      }
-      const progress = {
-        createdAt: existing.createdAt || Date.now(),
-        expiresAt: existing.expiresAt || Date.now() + SESSION_TTL_MS,
-        hppInputs,
-        packingCost,
-        adCost,
-        targetProfit,
-        unlocked,
-        paid,
-        isAlreadyPaid,
-        updatedAt: new Date().toISOString(),
-      }
-      localStorage.setItem(SESSION_PROGRESS_KEY, JSON.stringify(progress))
-    } catch {}
+    ;(async () => {
+      try {
+        const saved = await idbLoad(SESSION_PROGRESS_KEY)
+        let existing = { createdAt: null, expiresAt: null }
+        if (saved) {
+          existing = saved
+        }
+        const progress = {
+          createdAt: existing.createdAt || Date.now(),
+          expiresAt: existing.expiresAt || Date.now() + SESSION_TTL_MS,
+          hppInputs,
+          packingCost,
+          adCost,
+          targetProfit,
+          unlocked,
+          paid,
+          isAlreadyPaid,
+          updatedAt: new Date().toISOString(),
+        }
+        await idbSave(SESSION_PROGRESS_KEY, progress)
+      } catch {}
+    })()
   }, [hppInputs, packingCost, adCost, targetProfit, unlocked, paid, isAlreadyPaid])
 
   // Simpan packingCost ke history aktif saat berubah (dengan preservasi createdAt/expiresAt)
@@ -342,31 +372,33 @@ export default function Home() {
   }, [adCost, activeHistoryId, isHistoryLoaded])
 
   // Deteksi lewat 24 jam sejak upload pertama (expiresAt) setiap 30 detik.
-  // Jika Date.now() >= expiresAt, hapus seluruh progres dari localStorage
+  // Jika Date.now() >= expiresAt, hapus seluruh progres dari IndexedDB
   // dan reset state agar pelanggan memulai sesi baru.
   // Secara berkala juga memastikan riwayat kedaluwarsa (>24 jam) sudah dibuang
-  // permanen dari localStorage dan audittoko_active_id tidak pernah dangling.
+  // permanen dari IndexedDB dan audittoko_active_id tidak pernah dangling.
   useEffect(() => {
-    const interval = setInterval(() => {
+    let mounted = true
+    const interval = setInterval(async () => {
+      if (!mounted) return
       const now = Date.now()
       try {
-        // 1. PAPATI riwayat kedaluwarsa (>24 jam) dari localStorage dan bersihkan
+        // 1. PAPATI riwayat kedaluwarsa (>24 jam) dari IndexedDB dan bersihkan
         //    audittoko_active_id yang merujuk ke item yang sudah tidak valid.
-        const valid = getValidHistory()
+        const valid = await getValidHistory()
         const currentIds = auditHistoryRef.current.map((h) => h.id).sort()
         const validIds = valid.map((h) => h.id).sort()
-        if (JSON.stringify(currentIds) !== JSON.stringify(validIds)) {
+        if (JSON.stringify(currentIds) !== JSON.stringify(validIds) && mounted) {
           setAuditHistory(valid)
         }
 
         // 2. Deteksi lewat 24 jam sejak upload pertama (expiresAt session progress)
-        const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
+        const saved = await idbLoad(SESSION_PROGRESS_KEY)
         if (saved) {
-          const parsed = JSON.parse(saved)
-          if (parsed.expiresAt && now >= parsed.expiresAt) {
-            localStorage.removeItem(SESSION_PROGRESS_KEY)
+          const parsed = saved
+          if (parsed.expiresAt && now >= parsed.expiresAt && mounted) {
+            await idbRemove(SESSION_PROGRESS_KEY)
             // Riwayat sesi sudah kedaluwarsa: hapus juga audittoko_active_id
-            localStorage.removeItem(ACTIVE_ID_KEY)
+            await idbRemove(ACTIVE_ID_KEY)
             setExpiresAt(null)
             setHppInputs({})
             setPackingCost(2000)
@@ -384,7 +416,10 @@ export default function Home() {
         }
       } catch {}
     }, 30000)
-    return () => clearInterval(interval)
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
   }, [])
 
   const handleFileProcessed = useCallback(
@@ -440,29 +475,33 @@ export default function Home() {
 
         setAnalysisResult(normalizeAnalysisResult(result))
 
-        // Set createdAt & expiresAt (24 jam sejak upload pertama) di localStorage
+        // Set createdAt & expiresAt (24 jam sejak upload pertama) di IndexedDB
         // Tidak di-reset saat pengguna hanya mengedit input HPP/Packing/Iklan.
         const now = Date.now()
         setExpiresAt(now + SESSION_TTL_MS)
-        try {
-          const existing = localStorage.getItem(SESSION_PROGRESS_KEY)
-          let parsed = { createdAt: null, expiresAt: null }
-          if (existing) {
-            try { parsed = JSON.parse(existing) } catch {}
-          }
-          localStorage.setItem(SESSION_PROGRESS_KEY, JSON.stringify({
-            createdAt: parsed.createdAt || now,
-            expiresAt: parsed.expiresAt || now + SESSION_TTL_MS,
-            hppInputs,
-            packingCost,
-            adCost,
-            targetProfit,
-            unlocked,
-            paid,
-            isAlreadyPaid,
-            updatedAt: new Date().toISOString(),
-          }))
-        } catch {}
+        if (IS_CLIENT) {
+          ;(async () => {
+            try {
+              const existing = await idbLoad(SESSION_PROGRESS_KEY)
+              let parsed = { createdAt: null, expiresAt: null }
+              if (existing) {
+                parsed = existing
+              }
+              await idbSave(SESSION_PROGRESS_KEY, {
+                createdAt: parsed.createdAt || now,
+                expiresAt: parsed.expiresAt || now + SESSION_TTL_MS,
+                hppInputs,
+                packingCost,
+                adCost,
+                targetProfit,
+                unlocked,
+                paid,
+                isAlreadyPaid,
+                updatedAt: new Date().toISOString(),
+              })
+            } catch {}
+          })()
+        }
 
         // === ANTI-DUPLIKAT RIWAYAT 24 JAM ===
         const totalSettlement = result.summary?.settlementAmount || 0
@@ -470,7 +509,7 @@ export default function Home() {
 
         // Cek apakah file dengan nama yang sama masih aktif di riwayat valid
         // (belum dihapus dari popup & belum lewat 24 jam sejak createdAt)
-        const validHistory = getValidHistory()
+        const validHistory = await getValidHistory()
         const existingHistoryItem = validHistory.find((h) => h.fileName === name)
 
         if (existingHistoryItem) {
@@ -498,22 +537,26 @@ export default function Home() {
           setIsAlreadyPaid(isPaid)
 
           // Perpanjang sesi 24 jam & simpan ID aktif agar tahan refresh (F5)
-          try {
-            const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
-            if (saved) {
-              const parsed = JSON.parse(saved)
-              if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
-                setExpiresAt(parsed.expiresAt)
-              } else {
+          if (IS_CLIENT) {
+            ;(async () => {
+              try {
+                const saved = await idbLoad(SESSION_PROGRESS_KEY)
+                if (saved) {
+                  const parsed = saved
+                  if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
+                    setExpiresAt(parsed.expiresAt)
+                  } else {
+                    setExpiresAt(Date.now() + SESSION_TTL_MS)
+                  }
+                } else {
+                  setExpiresAt(Date.now() + SESSION_TTL_MS)
+                }
+                await idbSave(ACTIVE_ID_KEY, existingHistoryItem.id)
+              } catch {
                 setExpiresAt(Date.now() + SESSION_TTL_MS)
+                await idbSave(ACTIVE_ID_KEY, existingHistoryItem.id)
               }
-            } else {
-              setExpiresAt(Date.now() + SESSION_TTL_MS)
-            }
-            localStorage.setItem(ACTIVE_ID_KEY, existingHistoryItem.id)
-          } catch {
-            setExpiresAt(Date.now() + SESSION_TTL_MS)
-            localStorage.setItem(ACTIVE_ID_KEY, existingHistoryItem.id)
+            })()
           }
 
           setActiveHistoryId(existingHistoryItem.id)
@@ -637,76 +680,127 @@ export default function Home() {
     setIsAlreadyPaid(isUnlocked)
 
     // Perpanjang sesi 24 jam saat membuka riwayat lama
-    try {
-      const saved = localStorage.getItem(SESSION_PROGRESS_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
-          setExpiresAt(parsed.expiresAt)
-        } else {
+    if (IS_CLIENT) {
+      ;(async () => {
+        try {
+          const saved = await idbLoad(SESSION_PROGRESS_KEY)
+          if (saved) {
+            const parsed = saved
+            if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
+              setExpiresAt(parsed.expiresAt)
+            } else {
+              setExpiresAt(Date.now() + SESSION_TTL_MS)
+            }
+          } else {
+            setExpiresAt(Date.now() + SESSION_TTL_MS)
+          }
+          await idbSave(ACTIVE_ID_KEY, id)
+        } catch {
           setExpiresAt(Date.now() + SESSION_TTL_MS)
+          await idbSave(ACTIVE_ID_KEY, id)
         }
-      } else {
-        setExpiresAt(Date.now() + SESSION_TTL_MS)
-      }
-    } catch {
-      setExpiresAt(Date.now() + SESSION_TTL_MS)
+      })()
     }
-
     setActiveHistoryId(id)
-    // Simpan ID aktif ke localStorage agar layar hasil analisis tahan refresh (F5)
-    try { localStorage.setItem(ACTIVE_ID_KEY, id) } catch {}
     setView('results')
   }, [auditHistory])
 
   // Restore analisis aktif saat halaman dimuat atau di-refresh (F5).
   // Jika ada audittoko_active_id yang masih valid (belum kedaluwarsa 24 jam) di dalam
-  // daftar riwayat localStorage dan item tersebut memiliki analysisResult, pulihkan
+  // daftar riwayat IndexedDB dan item tersebut memiliki analysisResult, pulihkan
   // seluruh state layar agar tampilan setelah refresh identik 100% dengan kondisi
   // sebelum di-refresh (tidak pernah mereset ke Rp 0).
   // (Ditempatkan di sini agar handleLoadHistory sudah terdefinisi saat dependency array dievaluasi.)
   useEffect(() => {
+    let mounted = true
     if (!isHistoryLoaded || restoredActiveIdRef.current) return
-    try {
-      const activeId = localStorage.getItem(ACTIVE_ID_KEY)
-      if (!activeId) return
-      const validHistory = getValidHistory()
-      const item = validHistory.find((h) => h.id === activeId)
-      // Wajib memiliki analysisResult yang valid agar tidak menampilkan Rp 0 setelah refresh
-      if (item && item.analysisResult) {
-        restoredActiveIdRef.current = activeId
-        isRestoringRef.current = true
-        setView('results')
-        setFileData({
-          fileName: item.fileName || '',
-          headers: item.headers || [],
-          mapping: item.mapping || {},
-          createdAt: item.createdAt || null,
-        })
-        setDetectedFormat(item.marketplace || 'auto')
-        setMarketplace(item.marketplace || 'auto')
-        // Pulihkan seluruh hasil analisis dari localStorage (tidak pernah Rp 0)
-        setAnalysisResult(item.analysisResult)
-        setHppInputs(item.hppMap || {})
-        setPackingCost(item.packingCost != null ? item.packingCost : item.packingMap ?? 2000)
-        setAdCost(item.adCost != null ? item.adCost : item.adsCost ?? 0)
-        setTargetProfit(item.targetProfit ?? 0.15)
-        const isUnlocked = item.isUnlocked === true || item.isPaid === true || item.unlocked === true
-        setUnlocked(isUnlocked)
-        setPaid(isUnlocked)
-        setIsAlreadyPaid(isUnlocked)
-        setExpiresAt(item.expiresAt || Date.now() + SESSION_TTL_MS)
-        setActiveHistoryId(activeId)
-        // Simpan kembali ID aktif agar tahan refresh (F5)
-        try { localStorage.setItem(ACTIVE_ID_KEY, activeId) } catch {}
-      } else {
-        localStorage.removeItem(ACTIVE_ID_KEY)
-      }
-    } catch {}
-  }, [isHistoryLoaded])
+    if (!IS_CLIENT) return
+    ;(async () => {
+      if (!mounted) return
+      try {
+        const activeId = await idbLoad(ACTIVE_ID_KEY)
+        if (!activeId) return
+        const validHistory = await getValidHistory()
+        const item = validHistory.find((h) => h.id === activeId)
+        // Wajib memiliki analysisResult yang valid agar tidak menampilkan Rp 0 setelah refresh
+        if (item && item.analysisResult && mounted) {
+          restoredActiveIdRef.current = activeId
+          isRestoringRef.current = true
+          setView('results')
+          setFileData({
+            fileName: item.fileName || '',
+            headers: item.headers || [],
+            mapping: item.mapping || {},
+            createdAt: item.createdAt || null,
+          })
+          setDetectedFormat(item.marketplace || 'auto')
+          setMarketplace(item.marketplace || 'auto')
+          // Pulihkan seluruh hasil analisis dari IndexedDB (tidak pernah Rp 0)
+          setAnalysisResult(item.analysisResult)
+          setHppInputs(item.hppMap || {})
+          setPackingCost(item.packingCost != null ? item.packingCost : item.packingMap ?? 2000)
+          setAdCost(item.adCost != null ? item.adCost : item.adsCost ?? 0)
+          setTargetProfit(item.targetProfit ?? 0.15)
+          const isUnlocked = item.isUnlocked === true || item.isPaid === true || item.unlocked === true
+          setUnlocked(isUnlocked)
+          setPaid(isUnlocked)
+          setIsAlreadyPaid(isUnlocked)
+          setExpiresAt(item.expiresAt || Date.now() + SESSION_TTL_MS)
+          setActiveHistoryId(activeId)
+          // Simpan kembali ID aktif agar tahan refresh (F5)
+          try { await idbSave(ACTIVE_ID_KEY, activeId) } catch {}
+        } else if (mounted) {
+          await idbRemove(ACTIVE_ID_KEY)
+        }
+      } catch {}
+    })()
+    return () => { mounted = false }
+  }, [isHistoryLoaded, view])
+
+  // Fallback: jika view='results' namun analysisResult masih null (mis. pemulihan
+  // gagal), coba muat item riwayat terbaru yang memiliki analysisResult agar
+  // halaman audit tidak menampilkan kosong setelah refresh.
+  useEffect(() => {
+    let mounted = true
+    if (view !== 'results' || analysisResult !== null || !isHistoryLoaded || !IS_CLIENT) return
+    ;(async () => {
+      if (!mounted) return
+      try {
+        const validHistory = await getValidHistory()
+        if (!mounted) return
+        const itemWithResult = validHistory.find((h) => h.analysisResult)
+        if (itemWithResult && mounted) {
+          restoredActiveIdRef.current = itemWithResult.id
+          isRestoringRef.current = true
+          setView('results')
+          setFileData({
+            fileName: itemWithResult.fileName || '',
+            headers: itemWithResult.headers || [],
+            mapping: itemWithResult.mapping || {},
+            createdAt: itemWithResult.createdAt || null,
+          })
+          setDetectedFormat(itemWithResult.marketplace || 'auto')
+          setMarketplace(itemWithResult.marketplace || 'auto')
+          setAnalysisResult(itemWithResult.analysisResult)
+          setHppInputs(itemWithResult.hppMap || {})
+          setPackingCost(itemWithResult.packingCost != null ? itemWithResult.packingCost : itemWithResult.packingMap ?? 2000)
+          setAdCost(itemWithResult.adCost != null ? itemWithResult.adCost : itemWithResult.adsCost ?? 0)
+          setTargetProfit(itemWithResult.targetProfit ?? 0.15)
+          const isUnlocked = itemWithResult.isUnlocked === true || itemWithResult.isPaid === true || itemWithResult.unlocked === true
+          setUnlocked(isUnlocked)
+          setPaid(isUnlocked)
+          setIsAlreadyPaid(isUnlocked)
+          setExpiresAt(itemWithResult.expiresAt || Date.now() + SESSION_TTL_MS)
+          setActiveHistoryId(itemWithResult.id)
+          try { await idbSave(ACTIVE_ID_KEY, itemWithResult.id) } catch {}
+        }
+      } catch {}
+    })()
+    return () => { mounted = false }
+  }, [view, analysisResult, isHistoryLoaded])
 
   // Simpan riwayat audit aktif (lengkap dengan analysisResult dan semua konfigurasi)
-  // ke localStorage setiap kali konten berubah, agar refresh (F5) tidak menghilangkan data.
+  // ke IndexedDB setiap kali konten berubah, agar refresh (F5) tidak menghilangkan data.
   // Terjadi saat analysisResult terbentuk/diperbarui (upload, mengetik HPP, biaya packing,
   // biaya iklan, target profit, maupun saat status isUnlocked berubah menjadi true).
   //
@@ -763,7 +857,11 @@ export default function Home() {
 
     setAuditHistory((prev) => prev.map((h) => (h.id === activeHistoryId ? item : h)))
     // Simpan ID aktif agar layar hasil analisis tahan refresh (F5)
-    try { localStorage.setItem(ACTIVE_ID_KEY, activeHistoryId) } catch {}
+    if (IS_CLIENT) {
+      ;(async () => {
+        try { await idbSave(ACTIVE_ID_KEY, activeHistoryId) } catch {}
+      })()
+    }
     // HISTORY_KEY ditulis oleh useEffect pendengaran auditHistory di bawah
   }, [
     analysisResult,
@@ -785,11 +883,15 @@ export default function Home() {
       setActiveHistoryId(null)
       setView('home')
       // ID aktif tidak lagi valid karena riwayatnya dihapus
-      try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
+      if (IS_CLIENT) {
+        ;(async () => {
+          try { await idbRemove(ACTIVE_ID_KEY) } catch {}
+        })()
+      }
     }
   }, [activeHistoryId])
 
-  const handleClearAllHistory = useCallback(() => {
+  const handleClearAllHistory = useCallback(async () => {
     setAuditHistory([])
     setActiveHistoryId(null)
     setView('home')
@@ -799,8 +901,33 @@ export default function Home() {
     setUnlocked(false)
     setPaid(false)
     // Semua riwayat dihapus, ID aktif tidak lagi valid
-    try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
+    if (IS_CLIENT) {
+      try { await idbRemove(ACTIVE_ID_KEY) } catch {}
+    }
   }, [])
+
+  // Hapus semua data di IndexedDB dan kembalikan tampilan ke 0 (tombol Reset Data)
+  const handleResetData = useCallback(async () => {
+    if (!IS_CLIENT) return
+    try {
+      await idbClearAll()
+    } catch {}
+    setAuditHistory([])
+    setActiveHistoryId(null)
+    setView('home')
+    setAnalysisResult(null)
+    setFileData(null)
+    setIsAlreadyPaid(false)
+    setUnlocked(false)
+    setPaid(false)
+    setHppInputs({})
+    setPackingCost(2000)
+    setAdCost(0)
+    setTargetProfit(0.15)
+    setExpiresAt(null)
+    setDetectedFormat(null)
+    showToast('Semua data telah dihapus.')
+  }, [showToast])
 
   const handleDeleteSelectedHistory = useCallback((ids) => {
     setAuditHistory((prev) => prev.filter((h) => !ids.includes(h.id)))
@@ -813,7 +940,11 @@ export default function Home() {
       setUnlocked(false)
       setPaid(false)
       // ID aktif tidak lagi valid karena riwayatnya dihapus
-      try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
+      if (IS_CLIENT) {
+        ;(async () => {
+          try { await idbRemove(ACTIVE_ID_KEY) } catch {}
+        })()
+      }
     }
   }, [activeHistoryId])
 
@@ -833,7 +964,11 @@ export default function Home() {
     setActiveHistoryId(null)
     setIsAlreadyPaid(false)
     // Hapus ID aktif hanya saat pengguna secara eksplisit kembali ke beranda
-    try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
+    if (IS_CLIENT) {
+      ;(async () => {
+        try { await idbRemove(ACTIVE_ID_KEY) } catch {}
+      })()
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
@@ -846,7 +981,11 @@ export default function Home() {
     setUnlocked(false)
     setPaid(false)
     // Hapus ID aktif hanya saat pengguna secara eksplisit kembali ke beranda
-    try { localStorage.removeItem(ACTIVE_ID_KEY) } catch {}
+    if (IS_CLIENT) {
+      ;(async () => {
+        try { await idbRemove(ACTIVE_ID_KEY) } catch {}
+      })()
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
@@ -858,6 +997,11 @@ export default function Home() {
     setView('home')
     setActiveHistoryId(null)
     setIsAlreadyPaid(false)
+    if (IS_CLIENT) {
+      ;(async () => {
+        try { await idbRemove(ACTIVE_ID_KEY) } catch {}
+      })()
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setTimeout(() => {
       const el = document.getElementById('mulai-analisis')
@@ -1307,7 +1451,7 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-emerald-500">?</span>
-                Riwayat audit hanya disimpan di localStorage perangkat Anda, dapat dihapus kapan saja
+                Riwayat audit hanya disimpan di IndexedDB perangkat Anda, dapat dihapus kapan saja
               </li>
             </ul>
             <button onClick={() => setPrivacyModalOpen(false)} className="btn-outline w-full py-3 rounded-xl font-semibold text-slate-700">
@@ -1385,6 +1529,55 @@ export default function Home() {
             {auditHistory.length === 0 && (
               <p className="text-sm text-slate-500 text-center mt-8">Belum ada riwayat audit di perangkat ini.</p>
             )}
+            {/* Tombol Reset Data */}
+            {auditHistory.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <button
+                  onClick={() => setConfirmResetData(true)}
+                  className="w-full py-3 rounded-lg border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition-colors"
+                >
+                  Reset Data (Hapus Semua Data)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Konfirmasi Reset Data */}
+      {confirmResetData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl border border-slate-200 w-full max-w-md mx-4 transform transition-all">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">
+                  Konfirmasi Reset Data
+                </h3>
+                <p className="text-slate-600 text-sm">
+                  Yakin ingin menghapus semua data di perangkat ini? Riwayat audit,
+                  hasil analisis, input HPP, biaya packing, dan semua pengaturan akan
+                  dikembalikan ke 0. Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                onClick={() => setConfirmResetData(false)}
+                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleResetData}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+              >
+                Ya, Reset Semua Data
+              </button>
+            </div>
           </div>
         </div>
       )}

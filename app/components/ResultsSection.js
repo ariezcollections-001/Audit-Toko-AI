@@ -16,8 +16,11 @@ import {
   Truck,
 } from 'lucide-react'
 import { formatRupiah, formatPercent, calculateRecommendedPrice, generateMassUpdateExcel } from '../lib/analysis.cjs'
+import { idbSave, idbLoad, idbRemove } from '../lib/idb'
 import HppInputTable from './HppInputTable'
 import ProfitLeakTable from './ProfitLeakTable'
+
+const USED_VOUCHERS_KEY = 'audit_used_vouchers'
 
 export default function ResultsSection({
   summary,
@@ -154,20 +157,22 @@ export default function ResultsSection({
     loadVouchers()
   }, [])
 
-  const getUsedVouchers = () => {
+  const getUsedVouchers = async () => {
     try {
-      const raw = localStorage.getItem('audit_used_vouchers')
-      return raw ? JSON.parse(raw) : []
+      const saved = await idbLoad(USED_VOUCHERS_KEY)
+      return saved ? saved : []
     } catch {
       return []
     }
   }
 
-  const saveUsedVoucher = (code) => {
-    const used = getUsedVouchers()
+  const saveUsedVoucher = async (code) => {
+    const used = await getUsedVouchers()
     if (!used.includes(code)) {
       used.push(code)
-      localStorage.setItem('audit_used_vouchers', JSON.stringify(used))
+      try {
+        await idbSave(USED_VOUCHERS_KEY, used)
+      } catch {}
     }
   }
 
@@ -175,7 +180,7 @@ export default function ResultsSection({
     const code = voucherCode.trim()
     if (!code) return
 
-    const used = getUsedVouchers()
+    const used = await getUsedVouchers()
 
     if (used.includes(code)) {
       setVoucherMessage('Maaf, kode voucher ini sudah pernah digunakan di perangkat ini.')
@@ -185,7 +190,7 @@ export default function ResultsSection({
 
     // Validasi Kode Master (unlimited) dari admin config
     if (code === adminVouchers.masterCode) {
-      saveUsedVoucher(code)
+      await saveUsedVoucher(code)
       setUnlocked(true)
       setPaid(true)
       setVoucherMessage('Kode Master Berhasil Diterapkan — Akses Penuh Terbuka!')
@@ -213,7 +218,7 @@ export default function ResultsSection({
         })
       } catch {}
 
-      saveUsedVoucher(code)
+      await saveUsedVoucher(code)
       setUnlocked(true)
       setPaid(true)
       setVoucherMessage('Voucher 1x Pakai Berhasil Ditebus — Akses Penuh Terbuka!')
